@@ -10,7 +10,9 @@
 
 ## 실행 방법
 
-`index.html` 파일을 **더블클릭**하면 바로 열립니다. 설치도, 인터넷 연결도 필요 없습니다.
+인터넷이 되면 **<https://cbrnlee.github.io/world-flight/>** 로 바로 열면 됩니다.
+
+인터넷이 없는 교실이라면 `index.html` 파일을 **더블클릭**하세요. 설치도 필요 없습니다.
 
 > 크롬(Chrome)이나 엣지(Edge)에서 가장 잘 보입니다.
 > 전체 화면(<kbd>F11</kbd>)으로 하면 더 실감 납니다.
@@ -26,7 +28,22 @@ cd "비행기 운전" && python3 -m http.server 8123
 
 ---
 
-## 웹에 공개하기
+## 🌐 공개 주소
+
+### **<https://cbrnlee.github.io/world-flight/>**
+
+이 주소를 그대로 알려 주면 누구나 바로 놀 수 있습니다. 설치도 내려받기도 필요 없어요.
+`https://` 주소라서 **🎥 몸으로 조종(카메라)도 여기서 그대로 됩니다.**
+
+바꾼 내용을 다시 올리려면 커밋하고 밀어 넣기만 하면 됩니다. 1~2분 뒤 반영돼요.
+
+```bash
+cd "비행기 운전" && git add -A && git commit -m "고친 내용" && git push
+```
+
+---
+
+## 다른 곳에 올리고 싶다면
 
 먼저 **파일 하나로 묶습니다.** CSS·JS가 모두 HTML 안으로 들어가서, 어디에 올려도
 파일 한 개만 있으면 됩니다.
@@ -46,7 +63,7 @@ cd "비행기 운전" && python3 build.py
 
 | 방법 | 주소 | 카메라 | 준비 |
 |---|---|---|---|
-| **GitHub Pages** | `아이디.github.io/저장소` | ✅ 됨 | 깃허브 계정, 무료 |
+| **GitHub Pages** ← 지금 쓰는 곳 | `cbrnlee.github.io/world-flight` | ✅ 됨 | 깃허브 계정, 무료 |
 | **Netlify Drop** | `이름.netlify.app` | ✅ 됨 | 계정 없이 파일 끌어다 놓기 |
 | **Claude Artifact** | `claude.ai/code/artifact/...` | ⚠️ 막힐 수 있음 | 이미 올려 둠 |
 
@@ -57,7 +74,7 @@ cd "비행기 운전" && python3 build.py
 > **유치원에서 카메라 놀이를 하려면 GitHub Pages / Netlify 를 쓰거나,
 > `dist/세계여행비행기.html` 을 내려받아 컴퓨터에서 바로 여세요.**
 
-### GitHub Pages 로 올리는 법
+### 다른 계정의 GitHub Pages 로 올리는 법
 
 ```bash
 cd "비행기 운전"
