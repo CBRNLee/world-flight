@@ -1,0 +1,3092 @@
+<title>세계 여행 비행기</title>
+<style>
+/* ===== css/style.css ===== */
+/* =========================================================================
+ *  style.css — 화면 위에 얹는 안내 UI
+ * ========================================================================= */
+
+:root {
+  --ink:  #10151b;
+  --card: rgba(18, 24, 32, 0.82);
+  --line: rgba(255, 255, 255, 0.14);
+  --hi:   #ffd23f;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: #0b1016;
+  font-family: "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR",
+               system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #fff;
+  user-select: none;
+}
+
+#scene { display: block; position: fixed; inset: 0; touch-action: none; cursor: grab; }
+#scene:active { cursor: grabbing; }
+
+/* ------------------------------------------------------------ 위쪽 막대 */
+#hud {
+  position: fixed; top: 0; left: 0; right: 0;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 10px; padding: 10px 14px;
+  pointer-events: none; z-index: 20;
+}
+#hud > * { pointer-events: auto; }
+
+#destBox {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 16px; padding: 8px 16px 8px 12px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .35);
+}
+.dest-flag { font-size: 30px; line-height: 1; }
+.dest-info { display: flex; flex-direction: column; line-height: 1.15; }
+.dest-label { font-size: 11px; opacity: .6; letter-spacing: .04em; white-space: nowrap; }
+.dest-name  { font-size: 21px; font-weight: 800; white-space: nowrap; }
+.dest-dist  { font-size: 13px; opacity: .75; margin-left: 6px; }
+.dest-dist b { font-size: 22px; color: var(--hi); font-weight: 800; margin-right: 2px; }
+
+#tools { display: flex; flex-wrap: wrap; gap: 7px; justify-content: flex-end; }
+.hbtn {
+  font: inherit; font-size: 14px; font-weight: 700; color: #fff;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 13px; padding: 9px 13px; cursor: pointer;
+  backdrop-filter: blur(8px); transition: transform .08s, background .15s;
+}
+.hbtn:hover  { background: rgba(40, 52, 66, .9); }
+.hbtn:active { transform: scale(.95); }
+.hbtn.on  { background: #2f9e63; border-color: #4ade80; }
+.hbtn.off { opacity: .55; }
+.hbtn b { color: var(--hi); }
+
+/* -------------------------------------------------------------- 배너 */
+#cityBanner {
+  position: fixed; left: 50%; top: 86px; transform: translate(-50%, -24px);
+  display: flex; align-items: center; gap: 16px;
+  max-width: min(680px, 92vw); padding: 16px 22px;
+  background: linear-gradient(135deg, rgba(24, 34, 46, .95), rgba(14, 20, 28, .95));
+  border: 2px solid var(--hi); border-radius: 22px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .5);
+  opacity: 0; pointer-events: none; z-index: 30;
+  transition: opacity .35s, transform .35s;
+}
+#cityBanner.show { opacity: 1; transform: translate(-50%, 0); }
+.bn-flag { font-size: 52px; line-height: 1; }
+.bn-sub  { font-size: 12px; letter-spacing: .12em; color: var(--hi); font-weight: 700; }
+.bn-name { font-size: 28px; font-weight: 800; }
+.bn-name small { font-size: 14px; opacity: .65; font-weight: 600; margin-left: 6px; }
+.bn-fact { font-size: 14px; opacity: .85; margin-top: 4px; line-height: 1.45; }
+.bn-stamp {
+  margin-left: auto; white-space: nowrap; align-self: flex-start;
+  background: var(--hi); color: #201800; font-weight: 800; font-size: 12px;
+  padding: 6px 10px; border-radius: 999px; transform: rotate(-6deg);
+}
+
+/* ------------------------------------------------------- 화면 조종 버튼 */
+#touch {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  display: none; justify-content: space-between; align-items: flex-end;
+  padding: 0 12px 12px; pointer-events: none; z-index: 25;
+}
+#touch > * { pointer-events: auto; }
+.tpad { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.trow { display: flex; gap: 46px; }
+#touch button {
+  width: 62px; height: 52px; font-size: 20px; font-weight: 800; color: #fff;
+  background: rgba(16, 22, 30, .72); border: 1px solid var(--line);
+  border-radius: 15px; cursor: pointer;
+}
+#touch button.on { background: #2f9e63; }
+.tthr { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tthr span { font-size: 11px; opacity: .7; }
+
+/* 터치가 되는 기기에서만 보이게 */
+@media (pointer: coarse) { #touch { display: flex; } }
+
+/* ------------------------------------------------------- 카메라 미리보기 */
+#camPanel {
+  position: fixed; left: 12px; bottom: 12px; z-index: 26;   /* bottom 은 main.js 가 계기판 높이에 맞춰 조정 */
+  display: none; flex-direction: column; gap: 7px; width: 184px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 16px; padding: 9px; backdrop-filter: blur(8px);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .45);
+}
+#camPanel.show { display: flex; }
+#camView { width: 100%; border-radius: 10px; background: #10151b; display: block; }
+.cam-row { display: flex; gap: 5px; }
+.cam-row button {
+  flex: 1; font: inherit; font-size: 11.5px; font-weight: 700; color: #fff;
+  background: rgba(255, 255, 255, .08); border: 1px solid var(--line);
+  border-radius: 9px; padding: 6px 2px; cursor: pointer;
+}
+.cam-row button:hover { background: rgba(255, 255, 255, .16); }
+.cam-sens { display: flex; align-items: center; gap: 7px; font-size: 11px; opacity: .7;
+            white-space: nowrap; }
+.cam-sens input { flex: 1; accent-color: var(--hi); }
+
+.gesture { display: flex; flex-direction: column; gap: 9px; }
+.gesture > div {
+  display: flex; align-items: center; gap: 12px; font-size: 15px; line-height: 1.45;
+  background: rgba(255, 255, 255, .05); border-radius: 14px; padding: 12px 14px;
+}
+.gesture span { font-size: 30px; flex: none; }
+.gesture b { color: var(--hi); }
+.gesture i {
+  margin-left: auto; flex: none; font-style: normal; font-size: 11px; font-weight: 800;
+  background: rgba(255, 255, 255, .10); border-radius: 999px; padding: 4px 9px;
+}
+.privacy {
+  margin-top: 14px; font-size: 13px; line-height: 1.5;
+  background: rgba(96, 165, 250, .12); border: 1px solid rgba(96, 165, 250, .3);
+  border-radius: 12px; padding: 10px 13px; color: #cfe3ff;
+}
+.privacy b { color: #fff; }
+.cam-actions { display: flex; gap: 10px; margin-top: 14px; }
+.cam-actions .close { margin-top: 0; width: auto; flex: 0 0 150px; }
+#camStart {
+  flex: 1; font: inherit; font-size: 16px; font-weight: 800; color: #201800;
+  background: linear-gradient(180deg, #ffe27a, #ffc023);
+  border: 0; border-radius: 15px; padding: 13px; cursor: pointer;
+}
+#camStart:disabled { opacity: .5; cursor: default; }
+#camNote { min-height: 18px; }
+
+/* -------------------------------------------------------------- 모달 */
+.modal {
+  position: fixed; inset: 0; z-index: 40;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(4, 8, 12, .68); backdrop-filter: blur(4px); padding: 20px;
+}
+.modal.show { display: flex; }
+.sheet {
+  width: min(760px, 96vw); max-height: 88vh; overflow: auto;
+  background: #161d26; border: 1px solid var(--line);
+  border-radius: 24px; padding: 24px 26px 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .6);
+}
+.sheet h2 { font-size: 24px; margin-bottom: 6px; }
+.sheet .sub { font-size: 14px; opacity: .7; margin-bottom: 16px; line-height: 1.5; }
+.close {
+  margin-top: 18px; width: 100%; font: inherit; font-size: 16px; font-weight: 800;
+  padding: 13px; border-radius: 15px; border: 0; cursor: pointer;
+  background: #2b3644; color: #fff;
+}
+.close:hover { background: #364355; }
+
+#stamps { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.stamp {
+  border: 2px dashed rgba(255, 255, 255, .18); border-radius: 16px;
+  padding: 12px 10px; text-align: center; cursor: pointer;
+  transition: transform .1s, border-color .15s, background .15s;
+}
+.stamp:hover { transform: translateY(-2px); border-color: var(--hi); }
+.stamp.got { border-style: solid; border-color: #4ade80; background: rgba(74, 222, 128, .10); }
+.st-flag { font-size: 34px; line-height: 1.1; }
+.st-name { font-size: 17px; font-weight: 800; }
+.st-lm   { font-size: 11px; opacity: .6; margin-top: 2px; }
+.st-mark { font-size: 12px; font-weight: 800; color: #4ade80; margin-top: 6px; }
+.st-go   { font-size: 12px; opacity: .55; margin-top: 6px; }
+
+.keys { display: flex; flex-direction: column; gap: 11px; }
+.keys > div { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.keys span { opacity: .85; }
+.keys .wide { opacity: .6; font-size: 13px; padding-top: 4px; }
+kbd {
+  display: inline-block; min-width: 34px; text-align: center;
+  background: #26313e; border: 1px solid #3d4a5a; border-bottom-width: 3px;
+  border-radius: 8px; padding: 5px 9px; font-size: 13px; font-weight: 700;
+  font-family: inherit;
+}
+
+/* ---------------------------------------------------------- 시작 화면 */
+#startScreen {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  background: radial-gradient(120% 90% at 50% 20%, rgba(24, 46, 74, .72), rgba(4, 8, 14, .92));
+  backdrop-filter: blur(3px);
+  transition: opacity .5s;
+}
+#startScreen.gone { opacity: 0; pointer-events: none; }
+.start-card {
+  width: min(540px, 94vw); text-align: center;
+  background: rgba(18, 25, 34, .92); border: 1px solid var(--line);
+  border-radius: 30px; padding: 30px 28px 26px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .6);
+}
+.plane { font-size: 62px; animation: fly 3.4s ease-in-out infinite; }
+@keyframes fly {
+  0%, 100% { transform: translate(-8px, 4px) rotate(-4deg); }
+  50%      { transform: translate(8px, -6px) rotate(4deg); }
+}
+.start-card h1 { font-size: 32px; margin: 4px 0 8px; letter-spacing: -.01em; }
+.lead { font-size: 15px; opacity: .8; line-height: 1.6; }
+.steps { display: flex; flex-direction: column; gap: 8px; margin: 20px 0 22px; text-align: left; }
+.steps div {
+  display: flex; align-items: center; gap: 10px; font-size: 14.5px;
+  background: rgba(255, 255, 255, .05); border-radius: 14px; padding: 11px 14px;
+}
+.steps b {
+  flex: none; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--hi); color: #201800; font-size: 13px;
+  display: grid; place-items: center;
+}
+#btnGo {
+  width: 100%; font: inherit; font-size: 20px; font-weight: 800; color: #201800;
+  background: linear-gradient(180deg, #ffe27a, #ffc023);
+  border: 0; border-radius: 18px; padding: 16px; cursor: pointer;
+  box-shadow: 0 8px 0 #c98f00, 0 14px 26px rgba(0, 0, 0, .4);
+  transition: transform .08s, box-shadow .08s;
+}
+#btnGo:active { transform: translateY(5px); box-shadow: 0 3px 0 #c98f00; }
+.tip { font-size: 13px; opacity: .6; margin-top: 14px; }
+.tip b { color: var(--hi); }
+
+/* ------------------------------------------------------- 좁은 화면 대응 */
+@media (max-width: 720px) {
+  .dest-name { font-size: 17px; }
+  .dest-dist b { font-size: 18px; }
+  .hbtn { font-size: 12px; padding: 7px 10px; border-radius: 11px; }
+  #cityBanner { top: 78px; gap: 12px; padding: 12px 16px; }
+  .bn-flag { font-size: 38px; }
+  .bn-name { font-size: 21px; }
+  .bn-stamp { display: none; }
+}
+
+</style>
+<text y='26' font-size='26'>%E2%9C%88%EF%B8%8F</text></svg>" />
+<canvas id="scene"></canvas>
+
+<!-- ===================== 위쪽 안내 막대 ===================== -->
+<div id="hud">
+  <div id="destBox">
+    <span class="dest-flag" id="destFlag">🗼</span>
+    <span class="dest-info">
+      <span class="dest-label">다음 목적지</span>
+      <span class="dest-name" id="destName">도쿄</span>
+    </span>
+    <span class="dest-dist"><b id="destDist">0.0</b>km</span>
+  </div>
+
+  <div id="tools">
+    <button class="hbtn" id="btnDest">🎯 도시 바꾸기</button>
+    <button class="hbtn" id="btnAuto">🤖 자동조종</button>
+    <button class="hbtn" id="btnCam">🎥 몸으로 조종</button>
+    <button class="hbtn" id="btnSound">🔊 소리</button>
+    <button class="hbtn" id="btnPassport">📗 여권 <b id="stampCount">0</b>/<b id="stampTotal">24</b></button>
+    <button class="hbtn" id="btnHelp">❓</button>
+  </div>
+</div>
+
+<!-- ===================== 카메라 미리보기 ===================== -->
+<div id="camPanel">
+  <canvas id="camView" width="208" height="156"></canvas>
+  <div class="cam-row">
+    <button id="camBg" title="배경을 다시 기억해요">🖼 배경</button>
+    <button id="camPose" title="팔 벌린 기준 자세를 다시 잡아요">🧍 기준</button>
+    <button id="camOff">끄기</button>
+  </div>
+  <label class="cam-sens">
+    민감도
+    <input type="range" id="camSens" min="20" max="90" step="2" value="46" />
+  </label>
+</div>
+
+<!-- ===================== 도착 배너 ===================== -->
+<div id="cityBanner"></div>
+
+<!-- ===================== 화면 조종 버튼 (태블릿) ===================== -->
+<div id="touch">
+  <div class="tpad">
+    <button data-k="up">▲</button>
+    <div class="trow">
+      <button data-k="left">◀</button>
+      <button data-k="right">▶</button>
+    </div>
+    <button data-k="down">▼</button>
+  </div>
+  <div class="tthr">
+    <button data-k="thrUp">＋</button>
+    <span>출력</span>
+    <button data-k="thrDown">－</button>
+  </div>
+</div>
+
+<!-- ===================== 여권 ===================== -->
+<div class="modal" id="passport">
+  <div class="sheet">
+    <h2>📗 나의 여권</h2>
+    <p class="sub">도시 위를 지나가면 도장이 찍혀요. 카드를 누르면 그 도시로 목적지가 바뀝니다.</p>
+    <div id="stamps"></div>
+    <button class="close" data-close="passport">닫기</button>
+  </div>
+</div>
+
+<!-- ===================== 도움말 ===================== -->
+<div class="modal" id="help">
+  <div class="sheet">
+    <h2>❓ 조종 방법</h2>
+    <div class="keys">
+      <div><kbd>↑</kbd><kbd>↓</kbd><span>위로 올라가기 / 아래로 내려가기</span></div>
+      <div><kbd>←</kbd><kbd>→</kbd><span>왼쪽 · 오른쪽으로 돌기</span></div>
+      <div><kbd>W</kbd><kbd>S</kbd><span>더 빠르게 / 더 느리게</span></div>
+      <div><kbd>Space</kbd><span>자동 조종 켜기·끄기</span></div>
+      <div><kbd>N</kbd><span>다음 도시 고르기</span></div>
+      <div><kbd>P</kbd><span>여권 열기</span></div>
+      <div><kbd>M</kbd><span>소리 켜기·끄기</span></div>
+      <div><kbd>C</kbd><span>몸으로 조종하기(카메라)</span></div>
+      <div><span class="wide">창문을 마우스로 꾹 누른 채 움직여도 조종할 수 있어요.</span></div>
+    </div>
+    <button class="close" data-close="help">닫기</button>
+  </div>
+</div>
+
+<!-- ===================== 카메라(몸으로 조종) 안내 ===================== -->
+<div class="modal" id="camHelp">
+  <div class="sheet">
+    <h2>🎥 몸으로 비행기 조종하기</h2>
+    <p class="sub">카메라가 몸의 모습을 보고 조종해요. 카메라를 고정해 두고, 온몸이 보이도록 두세 걸음 뒤로 서 주세요.</p>
+
+    <div class="gesture">
+      <div><span>🙆</span><b>팔을 기울이면</b> 그쪽으로 돌아요 <i>좌우</i></div>
+      <div><span>🧍</span><b>팔을 나란히</b> 하면 수평 비행 <i>수평</i></div>
+      <div><span>🙌</span><b>팔을 위로 / 아래로</b> 올라가고 내려가요 <i>고도</i></div>
+      <div><span>🦸</span><b>가까이 오거나 키를 크게</b> 하면 빨라져요<br /><b>무릎을 굽히면</b> 느려져요 <i>속도</i></div>
+    </div>
+
+    <p class="sub" style="margin-top:14px">
+      켜면 ① 배경을 기억하려고 <b>3초 동안 카메라 앞에서 비켜</b> 달라고 하고,
+      ② 그다음 <b>팔을 옆으로 쭉 편 자세</b>를 3초 동안 기준으로 기억합니다.<br />
+      잘 안 되면 왼쪽 아래 미리보기의 <b>🖼 배경</b> · <b>🧍 기준</b> 버튼으로 다시 잡으세요.
+    </p>
+
+    <p class="privacy">🔒 카메라 영상은 <b>이 컴퓨터 안에서만</b> 처리됩니다.
+      어디에도 저장되거나 인터넷으로 전송되지 않아요.</p>
+
+    <div class="cam-actions">
+      <button id="camStart">📷 카메라 켜기</button>
+      <button class="close" data-close="camHelp">닫기</button>
+    </div>
+    <p class="tip" id="camNote"></p>
+  </div>
+</div>
+
+<!-- ===================== 시작 화면 ===================== -->
+<div id="startScreen">
+  <div class="start-card">
+    <div class="plane">✈️</div>
+    <h1>세계 여행 비행기</h1>
+    <p class="lead">조종석에 앉아 하늘을 날며<br />세계 여러 도시를 찾아가는 놀이예요.</p>
+
+    <div class="steps">
+      <div><b>1</b> 방향키로 비행기를 움직여요</div>
+      <div><b>2</b> 나침반의 분홍 화살표를 따라가요</div>
+      <div><b>3</b> 도시에 도착하면 여권에 도장을 받아요</div>
+    </div>
+
+    <button id="btnGo">비행기 출발! 🛫</button>
+    <p class="tip">어려우면 <b>🤖 자동조종</b> 버튼을 눌러 보세요.</p>
+  </div>
+</div>
+
+<script>
+/* ===== js/engine3d.js ===== */
+/* =========================================================================
+ *  engine3d.js — 초경량 3D 렌더러
+ *
+ *  외부 라이브러리 없이 Canvas 2D 위에 다각형을 직접 투영해서 그립니다.
+ *  (화가 알고리즘 = 먼 것부터 차례로 덧그리기)
+ *
+ *  좌표계 : X = 동쪽,  Y = 위,  Z = 북쪽   (오른손 좌표계)
+ *  각도   : yaw = 좌우 방향, pitch = 기수 상하, roll = 좌우 기울기
+ * ========================================================================= */
+'use strict';
+
+var Engine3D = (function () {
+
+  var TAU  = Math.PI * 2;
+  var NEAR = 1.5;                     // 근거리 절단면 (이보다 가까우면 잘라냄)
+
+  function norm(v) {
+    var l = Math.hypot(v[0], v[1], v[2]) || 1;
+    return [v[0] / l, v[1] / l, v[2] / l];
+  }
+  function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+
+  var SUN = norm([0.42, 0.78, -0.46]);   // 햇빛이 비쳐오는 방향
+
+  /* ---------------------------------------------------------------------
+   * 요·피치·롤 값으로부터 카메라(비행기)의 축 세 개를 만든다.
+   * 회전 순서: 롤 → 피치 → 요
+   * ------------------------------------------------------------------- */
+  function makeBasis(yaw, pitch, roll) {
+    var cy = Math.cos(yaw),   sy = Math.sin(yaw);
+    var cp = Math.cos(pitch), sp = Math.sin(pitch);
+    var cr = Math.cos(roll),  sr = Math.sin(roll);
+
+    function rot(vx, vy, vz) {
+      var x1 =  vx * cr + vy * sr;          // 롤 (앞뒤 축)
+      var y1 = -vx * sr + vy * cr;
+      var y2 =  y1 * cp + vz * sp;          // 피치 (좌우 축)
+      var z2 = -y1 * sp + vz * cp;
+      return [x1 * cy + z2 * sy, y2, -x1 * sy + z2 * cy];   // 요 (수직 축)
+    }
+    return { right: rot(1, 0, 0), up: rot(0, 1, 0), fwd: rot(0, 0, 1) };
+  }
+
+  /* 근거리 절단면으로 다각형 자르기 (Sutherland–Hodgman) */
+  function clipNear(pts) {
+    var out = [], n = pts.length, i, a, b, t;
+    for (i = 0; i < n; i++) {
+      a = pts[i]; b = pts[(i + 1) % n];
+      var ain = a.z >= NEAR, bin = b.z >= NEAR;
+      if (ain) out.push(a);
+      if (ain !== bin) {
+        t = (NEAR - a.z) / (b.z - a.z);
+        out.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t, z: NEAR });
+      }
+    }
+    return out;
+  }
+
+  /* 화면 사각형을 직선(A·x + B·y + C = 0)의 한쪽(<=0)으로 잘라내기 */
+  function clipHalfPlane(poly, A, B, C) {
+    var out = [], n = poly.length, i;
+    for (i = 0; i < n; i++) {
+      var a = poly[i], b = poly[(i + 1) % n];
+      var ga = A * a[0] + B * a[1] + C;
+      var gb = A * b[0] + B * b[1] + C;
+      var ain = ga <= 0, bin = gb <= 0;
+      if (ain) out.push(a);
+      if (ain !== bin) {
+        var t = ga / (ga - gb);
+        out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+      }
+    }
+    return out;
+  }
+
+  /* ===================================================================== */
+
+  function Renderer(canvas) {
+    this.canvas = canvas;
+    this.ctx    = canvas.getContext('2d', { alpha: false });
+    this.w = 1; this.h = 1; this.dpr = 1;
+    this.items  = [];
+
+    this.skyTop = [ 40, 112, 208];   // 하늘 꼭대기 색
+    this.haze   = [198, 228, 246];   // 수평선 안개 색
+    this.seaFar = [ 76, 150, 204];   // 먼 바다 / 가까운 바다
+    this.seaNear= [ 20,  78, 142];
+
+    this.fogStart = 2600;
+    this.fogEnd   = 17000;
+    this.horizonY = 0.4;             // 소실점의 화면 세로 위치 (px, main.js 가 설정)
+    this.outline  = true;            // 면 사이 실틈 없애기
+  }
+
+  Renderer.prototype.resize = function (w, h, dpr) {
+    this.w = w; this.h = h; this.dpr = dpr;
+    this.canvas.width  = Math.round(w * dpr);
+    this.canvas.height = Math.round(h * dpr);
+    this.canvas.style.width  = w + 'px';
+    this.canvas.style.height = h + 'px';
+    this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  };
+
+  Renderer.prototype.begin = function (cam) {
+    this.cam = cam;
+    var b = makeBasis(cam.yaw, cam.pitch, cam.roll);
+    this.rx = b.right; this.uy = b.up; this.fz = b.fwd;
+    this.cx = this.w * 0.5;
+    this.cy = this.horizonY;
+    this.focal = (this.h * 0.5) / Math.tan(cam.fov * 0.5);
+    this.items.length = 0;
+  };
+
+  /* 월드 좌표 → 카메라 좌표 */
+  Renderer.prototype.toCam = function (x, y, z) {
+    var p = this.cam.pos;
+    var dx = x - p[0], dy = y - p[1], dz = z - p[2];
+    var r = this.rx, u = this.uy, f = this.fz;
+    return {
+      x: dx * r[0] + dy * r[1] + dz * r[2],
+      y: dx * u[0] + dy * u[1] + dz * u[2],
+      z: dx * f[0] + dy * f[1] + dz * f[2]
+    };
+  };
+
+  /* 색 = 기본색 × 밝기, 그리고 거리만큼 안개색으로 흐려지게 */
+  Renderer.prototype._color = function (rgb, shade, dist) {
+    var f = (dist - this.fogStart) / (this.fogEnd - this.fogStart);
+    f = f < 0 ? 0 : (f > 1 ? 1 : f);
+    var hz = this.haze;
+    var r = rgb[0] * shade, g = rgb[1] * shade, b = rgb[2] * shade;
+    r += (hz[0] - r) * f; g += (hz[1] - g) * f; b += (hz[2] - b) * f;
+    return 'rgb(' + (r | 0) + ',' + (g | 0) + ',' + (b | 0) + ')';
+  };
+
+  /* 다각형 하나를 그리기 목록에 넣는다 (클리핑 + 투영까지 여기서)
+     bias = 겹쳐 놓은 바닥면끼리 순서가 흔들리지 않도록 하는 정렬 보정값 */
+  Renderer.prototype.addPoly = function (pts, rgb, shade, bias) {
+    var cam = [], minZ = Infinity, i, c;
+    for (i = 0; i < pts.length; i++) {
+      c = this.toCam(pts[i][0], pts[i][1], pts[i][2]);
+      cam.push(c);
+      if (c.z < minZ) minZ = c.z;
+    }
+    if (minZ < NEAR) {
+      cam = clipNear(cam);
+      if (cam.length < 3) return;
+    }
+    var flat = new Array(cam.length * 2), dsum = 0;
+    for (i = 0; i < cam.length; i++) {
+      c = cam[i];
+      var k = this.focal / c.z;
+      flat[i * 2]     = this.cx + c.x * k;
+      flat[i * 2 + 1] = this.cy - c.y * k;
+      dsum += c.z;
+    }
+    var d = dsum / cam.length;
+    if (d > this.fogEnd) return;
+    this.items.push({ p: flat, d: d - (bias || 0), c: this._color(rgb, shade, d) });
+  };
+
+  /* 앞면만 그리는 면(face) — 뒷면은 자동으로 걸러낸다 */
+  Renderer.prototype.addFace = function (pts, rgb) {
+    var p0 = pts[0], p1 = pts[1], p2 = pts[2];
+    var ax = p1[0] - p0[0], ay = p1[1] - p0[1], az = p1[2] - p0[2];
+    var bx = p2[0] - p0[0], by = p2[1] - p0[1], bz = p2[2] - p0[2];
+    var nx = ay * bz - az * by,
+        ny = az * bx - ax * bz,
+        nz = ax * by - ay * bx;
+    var cp = this.cam.pos;
+    if (nx * (cp[0] - p0[0]) + ny * (cp[1] - p0[1]) + nz * (cp[2] - p0[2]) <= 0) return;
+    var nl = Math.hypot(nx, ny, nz) || 1;
+    var lam = 0.55 + 0.45 * Math.max(0, (nx * SUN[0] + ny * SUN[1] + nz * SUN[2]) / nl);
+    this.addPoly(pts, rgb, lam);
+  };
+
+  /* --- 기본 도형들 ---------------------------------------------------- */
+
+  /* 상자: (x, z)는 중심, y는 바닥 높이, rot는 세로축 회전 */
+  Renderer.prototype.addBox = function (x, y, z, w, h, d, rgb, rot) {
+    var hw = w * 0.5, hd = d * 0.5;
+    var c = Math.cos(rot || 0), s = Math.sin(rot || 0);
+    function P(lx, ly, lz) {
+      return [x + lx * c + lz * s, y + ly, z - lx * s + lz * c];
+    }
+    var A = P(-hw, 0, -hd), B = P(hw, 0, -hd), C = P(hw, 0, hd), D = P(-hw, 0, hd);
+    var E = P(-hw, h, -hd), F = P(hw, h, -hd), G = P(hw, h, hd), H = P(-hw, h, hd);
+    this.addFace([E, H, G, F], rgb);   // 윗면
+    this.addFace([D, C, G, H], rgb);   // 북
+    this.addFace([B, A, E, F], rgb);   // 남
+    this.addFace([C, B, F, G], rgb);   // 동
+    this.addFace([A, D, H, E], rgb);   // 서
+  };
+
+  /* 원뿔대: r1 = 0 이면 뿔, r0 = r1 이면 원기둥, n = 4 면 사각 기둥 */
+  Renderer.prototype.addFrustum = function (x, y, z, r0, r1, h, n, rgb, rot) {
+    n = n || 12;
+    var phase = (rot || 0) + Math.PI / n;
+    var bot = [], top = [], i, a;
+    for (i = 0; i < n; i++) {
+      a = phase - (i / n) * TAU;                  // 각도를 줄이며 = 바깥쪽 법선
+      var ca = Math.cos(a), sa = Math.sin(a);
+      bot.push([x + ca * r0, y,     z + sa * r0]);
+      top.push([x + ca * r1, y + h, z + sa * r1]);
+    }
+    for (i = 0; i < n; i++) {
+      var j = (i + 1) % n;
+      if (r1 < 0.01) this.addFace([bot[i], bot[j], top[j]], rgb);
+      else           this.addFace([bot[i], bot[j], top[j], top[i]], rgb);
+    }
+    if (r1 >= 0.01) this.addFace(top, rgb);       // 윗뚜껑
+  };
+
+  /* 땅에 눕힌 원판(섬, 광장 등) */
+  Renderer.prototype.addDisc = function (x, y, z, r, n, rgb, bias) {
+    var pts = [], i;
+    for (i = 0; i < n; i++) {
+      var a = -(i / n) * TAU;
+      pts.push([x + Math.cos(a) * r, y, z + Math.sin(a) * r]);
+    }
+    this.addPoly(pts, rgb, 1.0, bias);
+  };
+
+  /* 땅에 눕힌 직사각형(활주로, 도로 등) */
+  Renderer.prototype.addRect = function (x, y, z, w, d, rgb, rot, bias) {
+    var hw = w * 0.5, hd = d * 0.5;
+    var c = Math.cos(rot || 0), s = Math.sin(rot || 0);
+    function P(lx, lz) { return [x + lx * c + lz * s, y, z - lx * s + lz * c]; }
+    this.addPoly([P(-hw, -hd), P(-hw, hd), P(hw, hd), P(hw, -hd)], rgb, 1.0, bias);
+  };
+
+  /* 구름 한 뭉치 (화면을 향한 동그라미) */
+  Renderer.prototype.addPuff = function (x, y, z, r, rgb, alpha) {
+    var c = this.toCam(x, y, z);
+    if (c.z < 260) return;                       /* 코앞의 구름은 그리지 않는다 */
+    if (c.z < 950) alpha *= (c.z - 260) / 690;   /* 가까울수록 서서히 옅게 */
+    var k = this.focal / c.z;
+    var sr = r * k;
+    if (sr < 1.2) return;
+    var sx = this.cx + c.x * k, sy = this.cy - c.y * k;
+    if (sx + sr < 0 || sx - sr > this.w || sy + sr < 0 || sy - sr > this.h) return;
+    if (c.z > this.fogEnd) return;
+    this.items.push({ p: [sx, sy], r: sr, d: c.z, a: alpha,
+                      c: this._color(rgb, 1, c.z * 0.55) });
+  };
+
+  /* --- 하늘 · 바다 · 해 ------------------------------------------------ */
+
+  Renderer.prototype.drawSky = function () {
+    var ctx = this.ctx, W = this.w, H = this.h;
+
+    /* 지평선 직선:  A·X + B·Y + C = 0,  지면은 값이 음수인 쪽 */
+    var A = this.rx[1];
+    var B = -this.uy[1];
+    var C = -this.cx * this.rx[1] + this.cy * this.uy[1] + this.focal * this.fz[1];
+    var len = Math.hypot(A, B) || 1;
+    var nxu = A / len, nyu = B / len;                       // 하늘 쪽 방향
+    var g0  = (A * this.cx + B * this.cy + C) / len;
+    var px  = this.cx - nxu * g0, py = this.cy - nyu * g0;  // 지평선 위의 한 점
+    var L   = H * 1.05;
+
+    /* 하늘 */
+    var sg = ctx.createLinearGradient(px + nxu * L, py + nyu * L, px, py);
+    sg.addColorStop(0,    rgbs(this.skyTop));
+    sg.addColorStop(0.55, rgbs(mix(this.skyTop, this.haze, 0.52)));
+    sg.addColorStop(0.88, rgbs(mix(this.skyTop, this.haze, 0.94)));
+    sg.addColorStop(1,    rgbs(this.haze));
+    ctx.fillStyle = sg;
+    ctx.fillRect(0, 0, W, H);
+
+    /* 해 */
+    var s = this.toCam(this.cam.pos[0] + SUN[0] * 1e4,
+                       this.cam.pos[1] + SUN[1] * 1e4,
+                       this.cam.pos[2] + SUN[2] * 1e4);
+    if (s.z > 1) {
+      var k = this.focal / s.z;
+      var sx = this.cx + s.x * k, sy = this.cy - s.y * k;
+      var rr = Math.max(24, this.h * 0.05);
+      var gg = ctx.createRadialGradient(sx, sy, rr * 0.2, sx, sy, rr * 5);
+      gg.addColorStop(0, 'rgba(255,252,225,0.95)');
+      gg.addColorStop(0.16, 'rgba(255,246,196,0.55)');
+      gg.addColorStop(1, 'rgba(255,246,196,0)');
+      ctx.fillStyle = gg;
+      ctx.beginPath(); ctx.arc(sx, sy, rr * 5, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#fffdf0';
+      ctx.beginPath(); ctx.arc(sx, sy, rr, 0, TAU); ctx.fill();
+    }
+
+    /* 바다 */
+    var ground = clipHalfPlane([[0, 0], [W, 0], [W, H], [0, H]], A, B, C);
+    if (ground.length >= 3) {
+      var wg = ctx.createLinearGradient(px, py, px - nxu * L * 0.85, py - nyu * L * 0.85);
+      wg.addColorStop(0,    rgbs(this.haze));
+      wg.addColorStop(0.05, rgbs(mix(this.haze, this.seaFar, 0.88)));
+      wg.addColorStop(0.17, rgbs(this.seaFar));
+      wg.addColorStop(0.55, rgbs(this.seaNear));
+      wg.addColorStop(1,    rgbs(mix(this.seaNear, [8, 46, 92], 0.7)));
+      ctx.beginPath();
+      ctx.moveTo(ground[0][0], ground[0][1]);
+      for (var i = 1; i < ground.length; i++) ctx.lineTo(ground[i][0], ground[i][1]);
+      ctx.closePath();
+      ctx.fillStyle = wg;
+      ctx.fill();
+    }
+  };
+
+  /* --- 모아둔 다각형을 먼 것부터 그린다 -------------------------------- */
+
+  Renderer.prototype.flush = function () {
+    var it = this.items, ctx = this.ctx, i, k, o, p;
+    it.sort(function (a, b) { return b.d - a.d; });
+    for (i = 0; i < it.length; i++) {
+      o = it[i];
+      if (o.r !== undefined) {                     // 구름
+        ctx.globalAlpha = o.a;
+        ctx.beginPath(); ctx.arc(o.p[0], o.p[1], o.r, 0, TAU);
+        ctx.fillStyle = o.c; ctx.fill();
+        ctx.globalAlpha = 1;
+        continue;
+      }
+      p = o.p;
+      ctx.beginPath();
+      ctx.moveTo(p[0], p[1]);
+      for (k = 2; k < p.length; k += 2) ctx.lineTo(p[k], p[k + 1]);
+      ctx.closePath();
+      ctx.fillStyle = o.c;
+      ctx.fill();
+      if (this.outline) { ctx.strokeStyle = o.c; ctx.lineWidth = 1; ctx.stroke(); }
+    }
+  };
+
+  /* --- 작은 도우미 ----------------------------------------------------- */
+
+  function rgbs(c) { return 'rgb(' + (c[0] | 0) + ',' + (c[1] | 0) + ',' + (c[2] | 0) + ')'; }
+  function mix(a, b, t) {
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  }
+
+  return {
+    Renderer: Renderer,
+    makeBasis: makeBasis,
+    clamp: clamp,
+    TAU: TAU
+  };
+})();
+
+</script>
+<script>
+/* ===== js/vision.js ===== */
+/* =========================================================================
+ *  vision.js — 카메라로 몸을 인식해서 비행기를 조종합니다.
+ *
+ *  외부 라이브러리 없이 직접 만든 실루엣 추적기입니다.
+ *   1) 사람이 없을 때의 배경을 몇 초 동안 기억해 둡니다.
+ *   2) 매 프레임 배경과 다른 부분(= 사람)을 찾아 실루엣을 만듭니다.
+ *   3) 실루엣의 왼쪽 끝 · 오른쪽 끝(= 두 손)과 머리 꼭대기를 찾아
+ *      팔의 기울기 · 팔의 높이 · 키 높이를 재서 조종 신호로 바꿉니다.
+ *
+ *  조종 방법
+ *    · 팔을 기울이면        → 그쪽으로 돌기 (좌우)
+ *    · 팔을 나란히          → 수평 비행
+ *    · 팔을 위로 / 아래로   → 고도 올리기 / 내리기
+ *    · 키를 크게 / 앉기     → 속도 빠르게 / 느리게
+ * ========================================================================= */
+'use strict';
+
+var Vision = (function () {
+
+  var W = 160, H = 120;                 /* 처리용 작은 해상도 */
+  var NPX = W * H;
+
+  var video = null, cap = null, cctx = null, stream = null;
+  var mcv = null, mctx = null, mimg = null;          /* 실루엣 미리보기용 */
+  var preview = null, pctx = null;
+
+  var bgSum = new Float32Array(NPX * 3), bgN = 0;
+  var bg    = null;
+  var mask  = new Uint8Array(NPX), tmp = new Uint8Array(NPX);
+  var colCount = new Int32Array(W), colSum = new Int32Array(W), colTop = new Int32Array(W);
+
+  var phase = 'off';      /* off | starting | bg | pose | on | lost | error */
+  var phaseT = 0;
+  var neutral = null;     /* 기준 자세: {hand, head, span} */
+  var poseAcc = null;
+  var sens = 46;          /* 배경과 얼마나 달라야 사람으로 볼지 */
+  var lastRun = 0;
+  var feat = null;
+  var sm = { roll: 0, pitch: 0, thr: 0.5 };
+  var msg = '';
+  var onPhase = null;
+
+  var out = { roll: 0, pitch: 0, throttle: null };
+
+  /* ------------------------------------------------------------- 켜고 끄기 */
+
+  function start(previewCanvas, phaseCallback) {
+    preview = previewCanvas || null;
+    pctx = preview ? preview.getContext('2d') : null;
+    onPhase = phaseCallback || null;
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      return fail('이 브라우저에서는 카메라를 쓸 수 없어요.');
+    }
+    if (!window.isSecureContext && location.protocol !== 'file:') {
+      return fail('카메라는 http://localhost 또는 https 에서만 켤 수 있어요.');
+    }
+
+    setPhase('starting', '카메라를 켜는 중…');
+
+    return navigator.mediaDevices.getUserMedia({
+      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+      audio: false
+    }).then(function (s) {
+      stream = s;
+      video = document.createElement('video');
+      video.srcObject = s;
+      video.playsInline = true;
+      video.muted = true;
+      return video.play();
+    }).then(function () {
+      cap = document.createElement('canvas'); cap.width = W; cap.height = H;
+      cctx = cap.getContext('2d', { willReadFrequently: true });
+      mcv = document.createElement('canvas'); mcv.width = W; mcv.height = H;
+      mctx = mcv.getContext('2d');
+      mimg = mctx.createImageData(W, H);
+      captureBackground();
+      return true;
+    }).catch(function (e) {
+      var name = (e && e.name) ? e.name : '알 수 없음';
+      if (name === 'NotAllowedError') {
+        return fail(cameraBlockedByPage()
+          ? '이 페이지에서는 카메라를 쓸 수 없어요. 파일을 내려받아 실행하면 됩니다.'
+          : '카메라 사용을 허락해 주세요. (주소창 옆 카메라 아이콘 → 허용)');
+      }
+      if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+        return fail('연결된 카메라를 찾지 못했어요.');
+      }
+      return fail('카메라를 열지 못했어요. (' + name + ')');
+    });
+  }
+
+  /* 페이지(iframe) 자체가 카메라를 막고 있는지 — 사용자가 거절한 것과 구분한다 */
+  function cameraBlockedByPage() {
+    try {
+      var fp = document.featurePolicy || document.permissionsPolicy;
+      if (fp && fp.allowsFeature) return !fp.allowsFeature('camera');
+    } catch (err) { /* 확인할 수 없으면 모르는 것으로 둔다 */ }
+    return false;
+  }
+
+  function fail(m) { setPhase('error', m); return Promise.resolve(false); }
+
+  function stop() {
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+    stream = null; video = null; bg = null; neutral = null;
+    setPhase('off', '');
+    out.roll = 0; out.pitch = 0; out.throttle = null;
+  }
+
+  function setPhase(p, m) {
+    phase = p; msg = m || ''; phaseT = performance.now();
+    if (onPhase) onPhase(p, msg);
+  }
+
+  /* 배경 다시 기억하기 */
+  function captureBackground() {
+    bgSum.fill(0); bgN = 0; bg = null;
+    setPhase('bg', '카메라 앞에서 잠깐만 비켜 주세요');
+  }
+
+  /* 기준 자세(팔 벌리고 서기) 다시 잡기 */
+  function capturePose() {
+    if (!bg) { captureBackground(); return; }
+    poseAcc = { hand: 0, head: 0, span: 0, n: 0 };
+    setPhase('pose', '팔을 옆으로 쭉 펴고 서 주세요');
+  }
+
+  /* -------------------------------------------------------------- 매 프레임 */
+
+  function update(now) {
+    if (!video || video.readyState < 2) return;
+    if (now - lastRun < 45) return;              /* 초당 약 22번만 처리 */
+    lastRun = now;
+
+    cctx.save();
+    cctx.scale(-1, 1);
+    cctx.drawImage(video, -W, 0, W, H);          /* 거울처럼 좌우 반전 */
+    cctx.restore();
+    var px = cctx.getImageData(0, 0, W, H).data;
+
+    if (phase === 'bg') {
+      accumulateBackground(px);
+      if (now - phaseT > 2400) {
+        finishBackground();
+        capturePose();
+      }
+      drawPreview(false);
+      return;
+    }
+    if (!bg) return;
+
+    buildMask(px);
+    feat = extract();
+
+    if (phase === 'pose') {
+      if (feat) {
+        poseAcc.hand += feat.hand; poseAcc.head += feat.head;
+        poseAcc.span += feat.span; poseAcc.n++;
+      }
+      if (now - phaseT > 2600) {
+        if (poseAcc.n > 12) {
+          neutral = { hand: poseAcc.hand / poseAcc.n,
+                      head: poseAcc.head / poseAcc.n,
+                      span: poseAcc.span / poseAcc.n };
+          sm.roll = 0; sm.pitch = 0; sm.thr = 0.5;
+          setPhase('on', '준비 완료! 몸으로 조종해 보세요');
+        } else {
+          setPhase('pose', '사람이 잘 안 보여요. 팔을 벌리고 서 주세요');
+        }
+      }
+      drawPreview(true);
+      return;
+    }
+
+    if (phase === 'on' || phase === 'lost') {
+      if (feat && neutral) {
+        if (phase === 'lost') setPhase('on', '');
+        control(feat);
+      } else {
+        if (phase === 'on') setPhase('lost', '사람이 안 보여요');
+        decay();
+      }
+      drawPreview(true);
+    }
+  }
+
+  /* ------------------------------------------------------------- 배경 기억 */
+
+  function accumulateBackground(px) {
+    for (var i = 0, p = 0; i < NPX; i++, p += 4) {
+      bgSum[i * 3]     += px[p];
+      bgSum[i * 3 + 1] += px[p + 1];
+      bgSum[i * 3 + 2] += px[p + 2];
+    }
+    bgN++;
+  }
+
+  function finishBackground() {
+    bg = new Float32Array(NPX * 3);
+    var k = bgN > 0 ? 1 / bgN : 1;
+    for (var i = 0; i < NPX * 3; i++) bg[i] = bgSum[i] * k;
+  }
+
+  /* ------------------------------------------------------------- 실루엣 */
+
+  function buildMask(px) {
+    var i, p, d;
+    for (i = 0, p = 0; i < NPX; i++, p += 4) {
+      d = Math.abs(px[p]     - bg[i * 3])
+        + Math.abs(px[p + 1] - bg[i * 3 + 1])
+        + Math.abs(px[p + 2] - bg[i * 3 + 2]);
+      tmp[i] = d > sens ? 1 : 0;
+    }
+    neighbours(tmp, mask, 6);      /* 잡티 지우기 */
+    neighbours(mask, tmp, 3);      /* 구멍 메우기 */
+    mask.set(tmp);
+  }
+
+  /* 3x3 이웃 중 k개 이상이 켜져 있으면 켠다 */
+  function neighbours(src, dst, k) {
+    var x, y, i, n, yy, xx;
+    for (y = 0; y < H; y++) {
+      for (x = 0; x < W; x++) {
+        i = y * W + x;
+        if (x === 0 || y === 0 || x === W - 1 || y === H - 1) { dst[i] = 0; continue; }
+        n = 0;
+        for (yy = -1; yy <= 1; yy++)
+          for (xx = -1; xx <= 1; xx++)
+            n += src[i + yy * W + xx];
+        dst[i] = n >= k ? 1 : 0;
+      }
+    }
+  }
+
+  /* --------------------------------------------------- 실루엣에서 특징 뽑기 */
+
+  function extract() {
+    var x, y, i;
+    colCount.fill(0); colSum.fill(0); colTop.fill(-1);
+    for (y = 0; y < H; y++) {
+      for (x = 0; x < W; x++) {
+        if (mask[y * W + x]) {
+          colCount[x]++; colSum[x] += y;
+          if (colTop[x] < 0) colTop[x] = y;
+        }
+      }
+    }
+
+    /* 사람일 가능성이 가장 큰 = 가장 넓은 연속 구간 */
+    var s = -1, bs = -1, be = -1;
+    for (x = 0; x <= W; x++) {
+      var on = x < W && colCount[x] >= 3;
+      if (on && s < 0) s = x;
+      if (!on && s >= 0) {
+        if (bs < 0 || (x - s) > (be - bs)) { bs = s; be = x; }
+        s = -1;
+      }
+    }
+    if (bs < 0) return null;
+    var span = be - bs;
+    if (span < 16) return null;
+
+    /* 양쪽 끝 = 두 손 */
+    var wing = Math.max(2, Math.round(span * 0.09));
+    var ly = meanY(bs, bs + wing), ry = meanY(be - wing, be);
+    if (ly === null || ry === null) return null;
+
+    /* 가운데 기둥들의 꼭대기 = 머리 (팔을 옆으로 벌려도 흔들리지 않음) */
+    var mid = (bs + be) / 2, half = Math.max(2, Math.round(span * 0.13));
+    var tops = [];
+    for (x = Math.round(mid - half); x <= Math.round(mid + half); x++) {
+      if (x >= 0 && x < W && colTop[x] >= 0) tops.push(colTop[x]);
+    }
+    if (tops.length < 3) return null;
+    tops.sort(function (a, b) { return a - b; });
+    var head = tops[tops.length >> 1];          /* 중앙값 */
+
+    var area = 0;
+    for (x = bs; x < be; x++) area += colCount[x];
+    if (area < 140) return null;
+
+    return { bs: bs, be: be, span: span, ly: ly, ry: ry,
+             hand: (ly + ry) * 0.5, head: head, area: area };
+  }
+
+  function meanY(x0, x1) {
+    var sum = 0, n = 0, x;
+    for (x = Math.max(0, x0); x < Math.min(W, x1); x++) {
+      if (colCount[x] > 0) { sum += colSum[x] / colCount[x]; n++; }
+    }
+    return n ? sum / n : null;
+  }
+
+  /* ------------------------------------------------------- 특징 → 조종 신호 */
+
+  function control(f) {
+    var scale = Math.max(24, neutral.span);
+
+    /* 좌우 · 수평 : 두 손을 잇는 선의 기울기 */
+    var tilt = (f.ly - f.ry) / scale;                 /* 오른손이 내려가면 음수 */
+    var roll = clamp(-tilt * 3.4, -1, 1);
+
+    /* 고도 : 손 높이 − 머리 높이 (앉거나 서도 영향 없음) */
+    var now  = (f.hand - f.head) / scale;
+    var base = (neutral.hand - neutral.head) / Math.max(24, neutral.span);
+    var pitch = clamp((base - now) * 3.6, -1, 1);
+
+    /* 속도 : 머리가 화면에서 얼마나 높은가 (가까이 오거나 키를 키우면 빠르게) */
+    var thr = clamp(0.5 + (neutral.head - f.head) / (H * 0.34), 0, 1);
+
+    sm.roll  += (dead(roll,  0.12) - sm.roll)  * 0.30;
+    sm.pitch += (dead(pitch, 0.12) - sm.pitch) * 0.26;
+    sm.thr   += (thr - sm.thr) * 0.10;
+
+    out.roll = sm.roll;
+    out.pitch = sm.pitch;
+    out.throttle = sm.thr;
+  }
+
+  function decay() {
+    sm.roll *= 0.90; sm.pitch *= 0.90;
+    out.roll = sm.roll; out.pitch = sm.pitch;
+    out.throttle = sm.thr;
+  }
+
+  function dead(v, d) {
+    if (v > d)  return (v - d) / (1 - d);
+    if (v < -d) return (v + d) / (1 - d);
+    return 0;
+  }
+  function clamp(v, a, b) { return v < a ? a : (v > b ? b : v); }
+
+  /* ----------------------------------------------------------- 미리보기 */
+
+  function drawPreview(showMask) {
+    if (!pctx) return;
+    var d = mimg.data, i, p, on;
+    for (i = 0, p = 0; i < NPX; i++, p += 4) {
+      on = showMask && mask[i];
+      d[p]     = on ? 126 : 20;
+      d[p + 1] = on ? 232 : 28;
+      d[p + 2] = on ? 168 : 38;
+      d[p + 3] = 255;
+    }
+    mctx.putImageData(mimg, 0, 0);
+
+    var cw = preview.width, ch = preview.height;
+    pctx.imageSmoothingEnabled = false;
+    pctx.drawImage(mcv, 0, 0, cw, ch);
+
+    if (showMask && feat) {
+      var kx = cw / W, ky = ch / H;
+      pctx.strokeStyle = '#ffd23f'; pctx.lineWidth = 2; pctx.lineCap = 'round';
+      pctx.beginPath();
+      pctx.moveTo(feat.bs * kx, feat.ly * ky);
+      pctx.lineTo(feat.be * kx, feat.ry * ky);
+      pctx.stroke();
+      pctx.fillStyle = '#ff5fd0';
+      pctx.beginPath();
+      pctx.arc((feat.bs + feat.be) / 2 * kx, feat.head * ky, 4, 0, Math.PI * 2);
+      pctx.fill();
+    }
+    if (phase !== 'on') {
+      pctx.fillStyle = 'rgba(0,0,0,0.55)';
+      pctx.fillRect(0, ch - 22, cw, 22);
+      pctx.fillStyle = '#fff';
+      pctx.font = '600 11px "Apple SD Gothic Neo", sans-serif';
+      pctx.textAlign = 'center';
+      pctx.fillText(msg || '준비 중…', cw / 2, ch - 7);
+    }
+  }
+
+  /* ------------------------------------------------------------------ API */
+
+  return {
+    start: start,
+    stop: stop,
+    update: update,
+    captureBackground: captureBackground,
+    capturePose: capturePose,
+    isActive: function () { return phase === 'on'; },
+    isRunning: function () { return phase !== 'off' && phase !== 'error'; },
+    phase: function () { return phase; },
+    message: function () { return msg; },
+    setSensitivity: function (v) { sens = v; },
+    sensitivity: function () { return sens; },
+    out: out,
+
+    /* 확인용 — 카메라 없이 가짜 화면을 넣어 볼 수 있습니다 */
+    __feed: function (rgba, asBackground) {
+      if (asBackground) {
+        bgSum.fill(0); bgN = 0;
+        accumulateBackground(rgba); finishBackground();
+        return null;
+      }
+      buildMask(rgba);
+      feat = extract();
+      if (feat && neutral) control(feat);
+      return feat;
+    },
+    __setNeutral: function (n) { neutral = n; sm.roll = 0; sm.pitch = 0; sm.thr = 0.5; },
+    __size: [W, H]
+  };
+})();
+
+</script>
+<script>
+/* ===== js/world.js ===== */
+/* =========================================================================
+ *  world.js — 세계(오픈월드) 만들기
+ *
+ *  · 바다 위에 24개의 도시 섬이 떠 있고, 지도는 사방으로 이어져 있습니다.
+ *    (끝까지 날아가면 반대편에서 다시 나옵니다 = 진짜 오픈월드)
+ *  · 도시마다 실제 랜드마크를 단순한 도형으로 만들어 두었습니다.
+ *
+ *  ★ 새 도시를 추가하려면 아래 CITY_DATA 배열에 항목을 하나 더 쓰면 됩니다.
+ * ========================================================================= */
+'use strict';
+
+var World = (function () {
+
+  var SIZE = 62000;            // 세계 한 변의 크기(m). 이 거리마다 지도가 이어짐
+  var TAU  = Math.PI * 2;
+
+  /* 되풀이되는 난수 (같은 씨앗 → 항상 같은 도시 모양) */
+  function rngFrom(seed) {
+    var a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) | 0;
+      var t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  /* 지도가 이어져 있으므로 "가장 가까운 쪽"의 차이를 구한다 */
+  function wrapDelta(a, b) {
+    var d = a - b;
+    while (d >  SIZE / 2) d -= SIZE;
+    while (d < -SIZE / 2) d += SIZE;
+    return d;
+  }
+
+  /* ---------------------------------------------------------------------
+   *  도시 목록
+   *  x, z : 세계 안에서의 위치   /  tall : 건물 높이 배율
+   * ------------------------------------------------------------------- */
+  /* 서울을 가운데 두고 안쪽 고리 7곳 · 바깥 고리 8곳으로 둘러쌉니다 */
+  function ring(i) {
+    var a = (i / 7) * TAU - Math.PI * 0.25;
+    return [Math.round(Math.cos(a) * 8600), Math.round(Math.sin(a) * 8600)];
+  }
+  function ring2(i) {
+    var a = (i / 8) * TAU - Math.PI * 0.25 + Math.PI / 8;
+    return [Math.round(Math.cos(a) * 16200), Math.round(Math.sin(a) * 16200)];
+  }
+  function ring3(i) {
+    var a = (i / 8) * TAU - Math.PI * 0.25;
+    return [Math.round(Math.cos(a) * 23800), Math.round(Math.sin(a) * 23800)];
+  }
+
+  var CITY_DATA = [
+    { id: 'seoul',  name: '서울',   country: '대한민국', flag: '🇰🇷',
+      landmark: 'N서울타워', pos: [0, 0], tall: 1.15, seed: 101,
+      grass: [126, 176, 96], walls: [[214,206,196],[186,192,200],[226,214,190],[176,186,178]],
+      fact: '남산 위에 우뚝 선 N서울타워! 밤이 되면 알록달록 불이 켜져요.',
+      real: '우리나라의 수도예요. 한강이 도시 한가운데를 흘러가요.',
+      build: buildSeoul },
+
+    { id: 'tokyo',  name: '도쿄',   country: '일본',     flag: '🇯🇵',
+      landmark: '도쿄타워',  pos: ring(0), tall: 1.30, seed: 202,
+      grass: [120, 172, 104], walls: [[224,222,216],[196,200,206],[172,180,190],[210,206,198]],
+      fact: '빨간색과 하얀색 줄무늬가 있는 도쿄타워가 반짝여요.',
+      real: '서울에서 비행기로 약 2시간, 8,900km가 아니라 1,150km 떨어져 있어요.',
+      build: buildTokyo },
+
+    { id: 'beijing', name: '베이징', country: '중국', flag: '🇨🇳',
+      landmark: '천단 & 만리장성', pos: ring(6), tall: 1.00, seed: 909,
+      grass: [134, 172, 96], walls: [[218,206,192],[196,186,176],[230,220,204],[178,170,162]],
+      fact: '지붕이 파란 천단, 그리고 산을 따라 구불구불 이어진 만리장성이에요.',
+      real: '만리장성은 아주 아주 길어서 걸어서 다 보려면 몇 달이 걸려요.',
+      build: buildBeijing },
+
+    { id: 'agra', name: '아그라', country: '인도', flag: '🇮🇳',
+      landmark: '타지마할', pos: ring(2), tall: 0.55, seed: 1010,
+      grass: [166, 186, 104], walls: [[236,220,198],[222,202,176],[244,232,214],[208,188,164]],
+      fact: '하얀 돌로 지은 타지마할! 가운데 동그란 지붕이 양파처럼 생겼어요.',
+      real: '옛날 임금님이 사랑하는 사람을 위해 20년 동안 지은 건물이래요.',
+      build: buildAgra },
+
+    { id: 'dubai', name: '두바이', country: '아랍에미리트', flag: '🇦🇪',
+      landmark: '부르즈 할리파', pos: ring(3), tall: 1.45, seed: 1111,
+      grass: [222, 200, 148], walls: [[196,208,220],[172,186,202],[214,222,230],[158,174,192]],
+      fact: '세상에서 가장 높은 건물이에요. 고개를 아주 많이 들어야 꼭대기가 보여요!',
+      real: '사막 옆 바닷가에 있는 도시예요. 아주 덥답니다.',
+      build: buildDubai },
+
+    { id: 'moscow', name: '모스크바', country: '러시아', flag: '🇷🇺',
+      landmark: '성 바실리 대성당', pos: ring(5), tall: 0.80, seed: 1212,
+      grass: [112, 162, 104], walls: [[212,198,186],[188,176,168],[226,214,200],[170,160,154]],
+      fact: '알록달록 양파 모양 지붕이 여러 개! 사탕처럼 예쁜 성당이에요.',
+      real: '겨울에 눈이 아주 많이 내리는 나라의 수도예요.',
+      build: buildMoscow },
+
+    { id: 'istanbul', name: '이스탄불', country: '튀르키예', flag: '🇹🇷',
+      landmark: '아야소피아', pos: ring2(0), tall: 0.70, seed: 1313,
+      grass: [156, 180, 104], walls: [[228,206,178],[210,186,158],[238,222,200],[196,174,148]],
+      fact: '커다란 둥근 지붕과 뾰족한 탑 네 개가 있어요.',
+      real: '한 도시가 아시아와 유럽에 걸쳐 있는 신기한 곳이에요.',
+      build: buildIstanbul },
+
+    { id: 'athens', name: '아테네', country: '그리스', flag: '🇬🇷',
+      landmark: '파르테논 신전', pos: ring2(1), tall: 0.50, seed: 1414,
+      grass: [186, 192, 118], walls: [[240,234,220],[226,218,202],[248,244,234],[214,206,190]],
+      fact: '기둥이 아주 많은 하얀 신전이에요. 기둥을 한번 세어 볼까요?',
+      real: '올림픽이 처음 시작된 나라랍니다.',
+      build: buildAthens },
+
+    { id: 'sanfran', name: '샌프란시스코', country: '미국', flag: '🇺🇸',
+      landmark: '금문교', pos: ring2(6), tall: 1.05, seed: 1515,
+      noBuild: function (x, z) { return Math.abs(x) < 380 && z > 220; },
+      grass: [138, 176, 108], walls: [[224,220,214],[198,196,194],[236,232,226],[176,176,178]],
+      fact: '바다 위에 걸린 아주 긴 빨간 다리예요. 다리도 교통기관이지요!',
+      real: '언덕이 많아서 케이블카가 다니는 도시예요.',
+      build: buildSF },
+
+    { id: 'rio', name: '리우데자네이루', country: '브라질', flag: '🇧🇷',
+      landmark: '예수상', pos: ring2(7), tall: 0.90, seed: 1616,
+      grass: [104, 168, 92], walls: [[236,226,206],[214,200,180],[244,236,220],[196,184,166]],
+      fact: '높은 산 위에서 두 팔을 활짝 벌린 커다란 조각상이 있어요.',
+      real: '바닷가와 초록 산이 함께 있는 도시예요. 축구를 아주 좋아해요.',
+      build: buildRio },
+
+    { id: 'sydney', name: '시드니', country: '오스트레일리아', flag: '🇦🇺',
+      landmark: '오페라하우스', pos: ring(1), tall: 0.85, seed: 303,
+      grass: [150, 186, 100], walls: [[232,228,218],[206,210,206],[188,196,204],[220,212,196]],
+      fact: '조개껍데기처럼 생긴 하얀 지붕! 바로 오페라하우스예요.',
+      real: '남반구에 있어서 우리나라가 겨울일 때 여기는 여름이에요.',
+      build: buildSydney },
+
+    { id: 'cairo',  name: '카이로', country: '이집트',   flag: '🇪🇬',
+      landmark: '피라미드', pos: ring(4), tall: 0.55, seed: 404,
+      grass: [214, 188, 122], walls: [[226,206,166],[212,190,150],[236,220,184],[200,180,146]],
+      fact: '아주 아주 옛날 사람들이 돌을 쌓아 만든 삼각형 피라미드예요.',
+      real: '사막 옆에 나일강이 흐르는 아주 오래된 도시예요.',
+      build: buildCairo },
+
+    { id: 'rome',   name: '로마',   country: '이탈리아', flag: '🇮🇹',
+      landmark: '콜로세움', pos: ring2(2), tall: 0.55, seed: 505,
+      grass: [156, 180, 96], walls: [[228,196,158],[218,178,140],[236,214,180],[204,166,132]],
+      fact: '동그란 운동장 콜로세움! 옛날 사람들이 여기 모여 구경했대요.',
+      real: '피자와 스파게티가 태어난 나라의 수도랍니다.',
+      build: buildRome },
+
+    { id: 'paris',  name: '파리',   country: '프랑스',   flag: '🇫🇷',
+      landmark: '에펠탑', pos: ring2(3), tall: 0.60, seed: 606,
+      grass: [138, 178, 104], walls: [[228,220,204],[214,206,190],[236,230,216],[200,192,178]],
+      fact: '쇠로 만든 아주 높은 에펠탑이 하늘을 찌를 듯 서 있어요.',
+      real: '빵집이 정말 많은 도시예요. 크루아상이 유명해요.',
+      build: buildParis },
+
+    { id: 'london', name: '런던',   country: '영국',     flag: '🇬🇧',
+      landmark: '빅벤 & 런던아이', pos: ring2(4), tall: 0.70, seed: 707,
+      grass: [116, 166, 106], walls: [[196,178,164],[176,160,150],[212,196,182],[164,152,146]],
+      fact: '땡땡 종을 치는 시계탑 빅벤, 그리고 커다란 관람차 런던아이!',
+      real: '이층 빨간 버스와 검은 택시가 다니는 도시예요.',
+      build: buildLondon },
+
+    { id: 'newyork', name: '뉴욕',  country: '미국',     flag: '🇺🇸',
+      landmark: '자유의 여신상', pos: ring2(5), tall: 1.60, seed: 808,
+      grass: [124, 168, 100], walls: [[186,192,200],[164,172,184],[208,212,216],[148,156,170]],
+      fact: '횃불을 든 초록빛 자유의 여신상이 바다를 바라보고 있어요.',
+      real: '하늘을 찌를 듯 높은 빌딩이 아주 많아서 마천루의 도시라고 불려요.',
+      build: buildNewYork },
+
+    /* ---- 바깥 고리 (조금 더 먼 나라들) ---- */
+
+    { id: 'singapore', name: '싱가포르', country: '싱가포르', flag: '🇸🇬',
+      landmark: '마리나 베이 샌즈', pos: ring3(0), tall: 1.35, seed: 1717,
+      grass: [128, 176, 112], walls: [[204,214,224],[180,194,210],[222,228,234],[164,180,198]],
+      fact: '기둥 세 개 위에 커다란 배가 올라앉은 것 같은 건물이에요!',
+      real: '아주 작은 섬나라인데 도시 하나가 곧 나라예요.',
+      build: buildSingapore },
+
+    { id: 'bangkok', name: '방콕', country: '태국', flag: '🇹🇭',
+      landmark: '왓 아룬', pos: ring3(1), tall: 0.75, seed: 1818,
+      grass: [140, 180, 96], walls: [[238,226,204],[224,206,176],[246,238,222],[212,192,164]],
+      fact: '뾰족뾰족 하얀 탑에 금빛 장식이 반짝이는 새벽 사원이에요.',
+      real: '강 위로 배가 다니는 물의 도시랍니다. 코끼리가 유명해요.',
+      build: buildBangkok },
+
+    { id: 'capetown', name: '케이프타운', country: '남아프리카공화국', flag: '🇿🇦',
+      landmark: '테이블 마운틴', pos: ring3(2), tall: 0.75, seed: 1919,
+      grass: [166, 178, 108], walls: [[234,228,216],[212,206,196],[244,238,228],[194,190,182]],
+      fact: '꼭대기가 책상처럼 평평한 산이에요. 그래서 테이블 마운틴!',
+      real: '아프리카 맨 아래쪽, 두 바다가 만나는 곳에 있어요.',
+      build: buildCapeTown },
+
+    { id: 'amsterdam', name: '암스테르담', country: '네덜란드', flag: '🇳🇱',
+      landmark: '풍차와 운하', pos: ring3(3), tall: 0.60, seed: 2020,
+      grass: [122, 178, 108], walls: [[196,150,126],[172,128,108],[214,170,144],[152,116,100]],
+      fact: '빙글빙글 도는 풍차와, 도시 사이로 흐르는 운하가 있어요.',
+      real: '자전거가 사람보다 많다고 할 만큼 자전거를 많이 타요.',
+      build: buildAmsterdam },
+
+    { id: 'berlin', name: '베를린', country: '독일', flag: '🇩🇪',
+      landmark: '브란덴부르크 문', pos: ring3(4), tall: 0.85, seed: 2121,
+      grass: [118, 168, 100], walls: [[218,212,202],[196,190,182],[232,226,216],[174,170,164]],
+      fact: '기둥이 늘어선 커다란 문과, 공이 달린 높은 텔레비전 탑이 있어요.',
+      real: '커다란 곰이 도시의 상징이에요.',
+      build: buildBerlin },
+
+    { id: 'barcelona', name: '바르셀로나', country: '스페인', flag: '🇪🇸',
+      landmark: '사그라다 파밀리아', pos: ring3(5), tall: 0.70, seed: 2222,
+      grass: [172, 184, 104], walls: [[238,216,180],[224,198,158],[246,232,206],[210,184,148]],
+      fact: '뾰족한 탑이 여러 개 솟은 성당이에요. 아직도 짓는 중이래요!',
+      real: '100년 넘게 짓고 있는 아주 특별한 건물이랍니다.',
+      build: buildBarcelona },
+
+    { id: 'toronto', name: '토론토', country: '캐나다', flag: '🇨🇦',
+      landmark: 'CN 타워', pos: ring3(6), tall: 1.25, seed: 2323,
+      grass: [116, 170, 104], walls: [[198,206,216],[176,186,200],[216,222,228],[158,170,186]],
+      fact: '가늘고 아주 높은 탑! 가운데에 동그란 전망대가 달려 있어요.',
+      real: '겨울에 아주 춥고 눈이 많이 오는 나라의 큰 도시예요.',
+      build: buildToronto },
+
+    { id: 'mexico', name: '멕시코시티', country: '멕시코', flag: '🇲🇽',
+      landmark: '태양의 피라미드', pos: ring3(7), tall: 0.80, seed: 2424,
+      grass: [188, 182, 108], walls: [[232,204,164],[218,186,142],[242,222,190],[206,174,134]],
+      fact: '계단이 층층이 있는 커다란 돌 피라미드예요. 올라가 볼까요?',
+      real: '이집트 피라미드와는 모양이 달라요. 꼭대기가 평평하답니다.',
+      build: buildMexico }
+  ];
+
+  /* ---------------------------------------------------------------------
+   *  도형을 담는 목록 만들기 도우미
+   *  종류 t: box(상자) / fru(원뿔대) / disc(원판) / rect(직사각형)
+   *  lm 이 true 면 아주 멀리서도 보이는 랜드마크
+   * ------------------------------------------------------------------- */
+  function G() { return []; }
+  function box(g, x, y, z, w, h, d, c, rot, lm) {
+    g.push({ t: 'box', x: x, y: y, z: z, w: w, h: h, d: d, c: c, r: rot || 0,
+             big: (y + h) > 90, lm: !!lm });
+  }
+  function fru(g, x, y, z, r0, r1, h, n, c, rot, lm) {
+    g.push({ t: 'fru', x: x, y: y, z: z, r0: r0, r1: r1, h: h, n: n, c: c, r: rot || 0,
+             big: (y + h) > 90, lm: !!lm });
+  }
+  /* b = 겹쳐 놓은 바닥면의 그리는 순서(클수록 위에 그려짐) */
+  function disc(g, x, y, z, r, n, c, lm, b) {
+    g.push({ t: 'disc', x: x, y: y, z: z, r0: r, n: n, c: c, b: b || 0,
+             big: r > 300, lm: !!lm });
+  }
+  function rect(g, x, y, z, w, d, c, rot, b) {
+    g.push({ t: 'rect', x: x, y: y, z: z, w: w, d: d, c: c, r: rot || 0, b: b || 0,
+             big: w > 400 });
+  }
+
+  /* ======================= 랜드마크들 ==================================== */
+
+  function buildSeoul(g) {
+    /* 남산 */
+    fru(g, 0, 0, -260, 300, 170, 90, 14, [104, 150, 88]);
+    /* N서울타워 */
+    fru(g, 0,  90, -260, 26, 18, 190, 10, [238, 238, 240], 0, true);
+    fru(g, 0, 262, -260, 48, 40,  42, 12, [206, 216, 228], 0, true);
+    fru(g, 0, 304, -260, 20, 13,  46, 10, [238, 238, 240], 0, true);
+    fru(g, 0, 350, -260,  5,  1,  86,  6, [226, 96, 84],   0, true);
+    /* 경복궁 느낌의 한옥들 */
+    var hx = [-330, -140, 60], hz = [300, 380, 300];
+    for (var i = 0; i < 3; i++) {
+      box(g, hx[i], 0, hz[i], 150, 34, 92, [214, 176, 138]);
+      fru(g, hx[i], 34, hz[i], 118, 20, 40, 4, [78, 106, 92], Math.PI / 4);
+      box(g, hx[i], 0, hz[i] + 56, 150, 8, 12, [176, 74, 60]);
+    }
+  }
+
+  function buildTokyo(g) {
+    /* 도쿄타워 */
+    fru(g, 0,   0, 0, 96, 40, 165, 4, [226, 84, 66], Math.PI / 4, true);
+    box(g, 0, 150, 0, 96, 16, 96, [244, 244, 240], Math.PI / 4, true);
+    fru(g, 0, 166, 0, 38, 22, 120, 4, [226, 84, 66], Math.PI / 4, true);
+    box(g, 0, 286, 0, 48, 12, 48, [244, 244, 240], Math.PI / 4, true);
+    fru(g, 0, 298, 0, 20,  7,  96, 4, [226, 84, 66], Math.PI / 4, true);
+    fru(g, 0, 394, 0,  4,  1,  70, 6, [230, 230, 230], 0, true);
+    /* 신사 문(토리이) */
+    box(g, 330, 0, 260, 14, 70, 14, [214, 76, 62]);
+    box(g, 390, 0, 260, 14, 70, 14, [214, 76, 62]);
+    box(g, 360, 70, 260, 110, 12, 18, [214, 76, 62]);
+  }
+
+  function buildSydney(g) {
+    /* 오페라하우스 */
+    box(g, 0, 0, 0, 340, 22, 190, [232, 226, 210]);
+    var sz = [[-105, 96], [-20, 128], [70, 104], [140, 72]];
+    for (var i = 0; i < sz.length; i++) {
+      fru(g, sz[i][0], 22, 10, sz[i][1], 0, sz[i][1] * 1.55, 4,
+          [246, 244, 238], Math.PI / 4, true);
+    }
+    /* 하버 브리지 */
+    var span = 520, n = 15;
+    for (var k = 0; k <= n; k++) {
+      var t = k / n;
+      var y = Math.sin(t * Math.PI) * 110;
+      box(g, -420, y, -300 + span * t, 30, 16, span / n + 6, [130, 138, 146]);
+    }
+    box(g, -420, 0, -300, 46, 130, 46, [140, 148, 156]);
+    box(g, -420, 0,  220, 46, 130, 46, [140, 148, 156]);
+  }
+
+  function buildCairo(g) {
+    var sand = [230, 208, 158], sand2 = [216, 192, 142];
+    fru(g,    0, 0,    0, 280, 0, 300, 4, sand,  Math.PI / 4, true);
+    fru(g,  380, 0, -170, 230, 0, 245, 4, sand2, Math.PI / 4, true);
+    fru(g, -320, 0, -230, 165, 0, 175, 4, sand,  Math.PI / 4, true);
+    /* 스핑크스 */
+    box(g, 60, 0, 380, 200, 46, 70, [222, 196, 148], 0.2);
+    box(g, 145, 40, 393, 54, 54, 54, [222, 196, 148], 0.2);
+    /* 야자수 몇 그루 */
+    for (var i = 0; i < 8; i++) {
+      var a = i / 8 * TAU, x = Math.cos(a) * 620, z = Math.sin(a) * 620;
+      fru(g, x, 0, z, 5, 4, 42, 6, [150, 118, 76]);
+      fru(g, x, 42, z, 34, 0, 26, 6, [92, 154, 88]);
+    }
+  }
+
+  function buildRome(g) {
+    /* 콜로세움 */
+    var n = 26, R = 170;
+    for (var i = 0; i < n; i++) {
+      var a = i / n * TAU;
+      var x = Math.cos(a) * R, z = Math.sin(a) * R;
+      box(g, x, 0,  z, 46, 62, 30, [226, 200, 158], -a, true);
+      box(g, x, 62, z, 46, 44, 28, [214, 186, 146], -a, true);
+    }
+    disc(g, 0, 3, 0, R - 22, 20, [198, 172, 132], false, 8);
+    /* 개선문 */
+    box(g, -420, 0, 260, 34, 96, 34, [224, 202, 166]);
+    box(g, -320, 0, 260, 34, 96, 34, [224, 202, 166]);
+    box(g, -370, 96, 260, 134, 34, 40, [230, 210, 176]);
+  }
+
+  function buildParis(g) {
+    /* 에펠탑 */
+    fru(g, 0,   0, 0, 118, 52, 118, 4, [166, 132, 96], Math.PI / 4, true);
+    box(g, 0, 118, 0, 118, 10, 118, [150, 118, 84], Math.PI / 4, true);
+    fru(g, 0, 128, 0,  50, 27, 132, 4, [166, 132, 96], Math.PI / 4, true);
+    box(g, 0, 260, 0,  62,  9,  62, [150, 118, 84], Math.PI / 4, true);
+    fru(g, 0, 269, 0,  25,  8, 148, 4, [172, 138, 100], Math.PI / 4, true);
+    box(g, 0, 417, 0,  22, 14,  22, [200, 196, 190], Math.PI / 4, true);
+    fru(g, 0, 431, 0,   4,  1,  56, 6, [220, 218, 214], 0, true);
+    /* 개선문 + 성당 */
+    box(g, -430, 0, 300, 30, 84, 30, [230, 222, 204]);
+    box(g, -340, 0, 300, 30, 84, 30, [230, 222, 204]);
+    box(g, -385, 84, 300, 120, 30, 36, [236, 228, 210]);
+    box(g, 380, 0, -300, 120, 60, 80, [226, 218, 200]);
+    fru(g, 380, 60, -300, 60, 0, 70, 8, [110, 124, 130]);
+  }
+
+  function buildLondon(g) {
+    /* 빅벤 */
+    box(g, 0, 0, 0, 46, 172, 46, [216, 190, 148], 0, true);
+    box(g, 0, 150, 0, 52, 30, 52, [244, 242, 232], 0, true);
+    fru(g, 0, 180, 0, 34, 0, 76, 4, [92, 118, 96], Math.PI / 4, true);
+    box(g, -70, 0, 0, 96, 60, 60, [206, 182, 142]);
+    /* 런던아이 (관람차) */
+    var cxw = 330, cyw = 130, czw = 180, RW = 118;
+    for (var i = 0; i < 20; i++) {
+      var a = i / 20 * TAU;
+      box(g, cxw, cyw + Math.cos(a) * RW - 6, czw + Math.sin(a) * RW,
+          14, 14, 14, [228, 234, 240], 0, true);
+    }
+    box(g, cxw, 0, czw - 46, 16, cyw, 16, [190, 198, 206]);
+    box(g, cxw, 0, czw + 46, 16, cyw, 16, [190, 198, 206]);
+  }
+
+  function buildNewYork(g) {
+    /* 자유의 여신상 */
+    fru(g, 0,   0, 0, 82, 66, 56, 8, [176, 166, 150], 0, true);
+    fru(g, 0,  56, 0, 46, 34, 40, 8, [162, 152, 138], 0, true);
+    fru(g, 0,  96, 0, 27, 16, 96, 8, [116, 190, 168], 0, true);
+    box(g, 0, 192, 0, 20, 22, 20, [116, 190, 168], 0, true);
+    fru(g, 0, 214, 0, 15,  9, 12, 9, [128, 200, 178], 0, true);
+    box(g, 22, 150, 0, 12, 96, 12, [116, 190, 168], 0.25, true);   /* 든 팔 */
+    fru(g, 26, 246, 0, 11, 4, 20, 8, [240, 210, 120], 0, true);    /* 횃불 */
+    /* 엠파이어스테이트 느낌의 마천루 */
+    box(g, -420, 0, -260, 90, 300, 90, [156, 166, 180], 0, true);
+    box(g, -420, 300, -260, 58, 90, 58, [166, 176, 190], 0, true);
+    fru(g, -420, 390, -260, 12, 1, 70, 6, [200, 206, 214], 0, true);
+    box(g, 400, 0, -320, 76, 250, 76, [170, 178, 192], 0.3, true);
+  }
+
+  /* --- 양파 모양 지붕 (모스크바·타지마할에 씁니다) --- */
+  function onion(g, x, y, z, r, h, c, tip) {
+    fru(g, x, y,              z, r * 0.60, r,        h * 0.34, 10, c, 0, true);
+    fru(g, x, y + h * 0.34,   z, r,        r * 0.16, h * 0.52, 10, c, 0, true);
+    fru(g, x, y + h * 0.86,   z, r * 0.18, r * 0.26, h * 0.07,  8, tip, 0, true);
+    fru(g, x, y + h * 0.93,   z, r * 0.10, 0,        h * 0.24,  6, tip, 0, true);
+  }
+
+  function buildBeijing(g) {
+    /* 천단 — 파란 지붕이 세 겹 */
+    var wh = [240, 234, 220], blue = [56, 106, 168], gold = [232, 196, 96];
+    fru(g, 0,   0, 0, 156, 146, 22, 18, [228, 220, 204], 0, true);
+    fru(g, 0,  22, 0, 118, 108, 26, 18, wh,   0, true);
+    fru(g, 0,  48, 0, 124,  22, 42, 18, blue, 0, true);
+    fru(g, 0,  90, 0,  88,  82, 22, 18, wh,   0, true);
+    fru(g, 0, 112, 0,  92,  18, 36, 18, blue, 0, true);
+    fru(g, 0, 148, 0,  62,  56, 20, 18, wh,   0, true);
+    fru(g, 0, 168, 0,  66,  10, 32, 18, blue, 0, true);
+    fru(g, 0, 200, 0,  10,   2, 28,  8, gold, 0, true);
+
+    /* 만리장성 — 구불구불 이어지는 성벽과 망루 */
+    var n = 24, prev = null, stone = [188, 180, 166];
+    for (var i = 0; i <= n; i++) {
+      var t = i / n;
+      var wx = -1050 + t * 2100, wz = 620 + Math.sin(t * 5.6) * 300;
+      if (prev) {
+        var dx = wx - prev[0], dz = wz - prev[1];
+        box(g, (wx + prev[0]) / 2, 0, (wz + prev[1]) / 2,
+            Math.hypot(dx, dz) + 8, 46, 34, stone, -Math.atan2(dz, dx), true);
+      }
+      if (i % 6 === 3) box(g, wx, 0, wz, 68, 86, 68, [176, 168, 152], 0, true);
+      prev = [wx, wz];
+    }
+  }
+
+  function buildAgra(g) {
+    var wh = [246, 242, 234], gold = [228, 192, 98];
+    box(g, 0, 0, 0, 470, 16, 470, [232, 226, 212]);
+    box(g, 0, 16, 0, 252, 96, 252, wh, 0, true);
+    /* 가운데 큰 돔 */
+    fru(g, 0, 112, 0, 76, 88, 28, 16, wh, 0, true);
+    fru(g, 0, 140, 0, 88, 58, 66, 16, wh, 0, true);
+    fru(g, 0, 206, 0, 58,  8, 44, 12, wh, 0, true);
+    fru(g, 0, 250, 0,  9,  1, 28,  8, gold, 0, true);
+    /* 모서리의 작은 돔 4개 */
+    [[-94,-94],[94,-94],[-94,94],[94,94]].forEach(function (o) {
+      fru(g, o[0], 112, o[1], 26, 30, 16, 10, wh, 0, true);
+      fru(g, o[0], 128, o[1], 30,  4, 30, 10, wh, 0, true);
+    });
+    /* 첨탑 4개 */
+    [[-205,-205],[205,-205],[-205,205],[205,205]].forEach(function (o) {
+      fru(g, o[0],   0, o[1], 17, 12, 168, 10, wh, 0, true);
+      fru(g, o[0], 168, o[1], 21,  2,  30, 10, [232, 224, 208], 0, true);
+    });
+    rect(g, 0, 1.6, 470, 60, 520, [156, 200, 220], 0, 6);   /* 앞의 긴 연못 */
+  }
+
+  function buildDubai(g) {
+    var s1 = [192, 206, 220], s2 = [168, 184, 202];
+    fru(g, 0,   0, 0, 98, 66, 195, 6, s1, 0, true);
+    fru(g, 0, 195, 0, 66, 44, 165, 6, s2, 0, true);
+    fru(g, 0, 360, 0, 44, 26, 150, 6, s1, 0, true);
+    fru(g, 0, 510, 0, 26, 12, 120, 6, s2, 0, true);
+    fru(g, 0, 630, 0, 12,  2, 155, 6, [224, 232, 240], 0, true);
+    box(g, -330, 0,  250, 82, 300, 82, [172, 186, 202], 0.3, true);
+    box(g,  310, 0, -270, 72, 262, 72, [184, 198, 212], 0.6, true);
+    disc(g, 0, 1.2, 760, 430, 18, [242, 226, 178], false, 6);   /* 백사장 */
+  }
+
+  function buildMoscow(g) {
+    var wall = [234, 226, 212], gold = [244, 206, 96];
+    box(g, 0, 0, 0, 290, 62, 290, wall, 0, true);
+    onion(g, 0, 62, 0, 46, 155, [198, 70, 64], gold);
+    var off  = [[-98,-98],[98,-98],[-98,98],[98,98],[0,-146],[0,146]];
+    var cols = [[70,140,196],[96,168,104],[228,196,86],[196,108,178],[228,120,72],[240,238,232]];
+    off.forEach(function (o, i) {
+      box(g, o[0], 62, o[1], 58, 46, 58, wall, 0, true);
+      onion(g, o[0], 108, o[1], 31, 92, cols[i], gold);
+    });
+    /* 크렘린 붉은 성벽 */
+    box(g, 0, 0, 340, 620, 34, 40, [176, 84, 72], 0, true);
+    box(g, -300, 0, 340, 54, 96, 54, [166, 78, 68], 0, true);
+    box(g,  300, 0, 340, 54, 96, 54, [166, 78, 68], 0, true);
+  }
+
+  function buildIstanbul(g) {
+    var sand = [228, 200, 168], dome = [172, 166, 158], wh = [238, 232, 220];
+    box(g, 0,  0, 0, 256, 78, 214, sand, 0, true);
+    fru(g, 0, 78, 0, 102, 98, 26, 16, sand, 0, true);
+    fru(g, 0,104, 0,  98, 20, 76, 16, dome, 0, true);
+    fru(g, 0,180, 0,  10,  2, 26,  8, [224, 198, 122], 0, true);
+    fru(g, -112, 78, 0, 62, 12, 48, 12, dome, 0, true);
+    fru(g,  112, 78, 0, 62, 12, 48, 12, dome, 0, true);
+    [[-152,-134],[152,-134],[-152,134],[152,134]].forEach(function (o) {
+      fru(g, o[0],   0, o[1], 15, 11, 192, 10, wh, 0, true);
+      fru(g, o[0], 192, o[1], 18,  0,  42, 10, dome, 0, true);
+    });
+  }
+
+  function buildAthens(g) {
+    var st = [240, 234, 218];
+    box(g, 0,  0, 0, 340, 10, 200, [214, 206, 188]);
+    box(g, 0, 10, 0, 314, 10, 174, [226, 218, 200]);
+    box(g, 0, 20, 0, 288, 10, 148, st);
+    var i;
+    for (i = 0; i < 8; i++) {                      /* 앞뒤 기둥 8개씩 */
+      var cx = -122 + i * 34.8;
+      fru(g, cx, 30, -60, 11, 10, 76, 8, st, 0, true);
+      fru(g, cx, 30,  60, 11, 10, 76, 8, st, 0, true);
+    }
+    for (i = 1; i <= 3; i++) {                     /* 옆줄 기둥 */
+      fru(g, -122, 30, -60 + i * 30, 11, 10, 76, 8, st, 0, true);
+      fru(g,  122, 30, -60 + i * 30, 11, 10, 76, 8, st, 0, true);
+    }
+    box(g, 0, 106, 0, 300, 20, 160, st, 0, true);
+    box(g, 0, 126, 0, 250, 14, 128, [228, 220, 202], 0, true);
+    box(g, 0, 140, 0, 170, 12,  90, [216, 208, 190], 0, true);
+    box(g, 0, 152, 0,  92, 10,  50, [204, 196, 178], 0, true);
+  }
+
+  var SF_Z = 1000;                 /* 다리는 섬 북쪽의 해협 위에 놓습니다 */
+
+  function buildSF(g) {
+    var red = [201, 74, 54], deck = [178, 180, 184];
+    var i, t, x, y;
+    /* 섬을 가르는 바닷길 */
+    rect(g, 0, 1.2, 1330, 680, 2140, [38, 108, 172], 0, 6);
+    /* 다리 상판 */
+    for (i = 0; i < 26; i++) {
+      x = -780 + (i / 25) * 1560;
+      box(g, x, 96, SF_Z, 66, 10, 92, deck, 0, true);
+    }
+    /* 붉은 탑 두 개 */
+    [-330, 330].forEach(function (tx) {
+      box(g, tx,   0, SF_Z - 32, 42, 300, 42, red, 0, true);
+      box(g, tx,   0, SF_Z + 32, 42, 300, 42, red, 0, true);
+      box(g, tx, 186, SF_Z, 42, 20, 106, red, 0, true);
+      box(g, tx, 262, SF_Z, 42, 20, 106, red, 0, true);
+    });
+    /* 늘어진 주 케이블 */
+    for (i = 0; i <= 30; i++) {
+      t = i / 30; x = -780 + t * 1560;
+      if (x <= -330)     y = 300 - Math.pow((x + 330) / 450, 2) * 190;
+      else if (x >= 330) y = 300 - Math.pow((x - 330) / 450, 2) * 190;
+      else               y = 160 + Math.pow(x / 330, 2) * 140;
+      box(g, x, y, SF_Z - 32, 56, 9, 9, red, 0, true);
+      box(g, x, y, SF_Z + 32, 56, 9, 9, red, 0, true);
+    }
+    /* 언덕 위의 동네 */
+    fru(g, -680, 0, 300, 300, 170, 96, 10, [128, 168, 100], 0, true);
+    fru(g,  700, 0, 240, 260, 150, 84, 10, [118, 160, 94],  0, true);
+  }
+
+  function buildRio(g) {
+    var stone = [214, 212, 208];
+    fru(g, 0, 0, 0, 350, 120, 255, 12, [86, 132, 78], 0, true);   /* 코르코바두 산 */
+    box(g, 0, 255, 0, 78, 46, 78, [186, 184, 180], 0, true);
+    box(g, 0, 301, 0, 34, 122, 26, stone, 0, true);
+    box(g, 0, 378, 0, 200, 20, 22, stone, 0, true);               /* 활짝 편 두 팔 */
+    box(g, 0, 423, 0, 24, 26, 22, stone, 0, true);
+    fru(g, 640, 0, -340, 200, 92, 240, 10, [96, 128, 84], 0, true); /* 슈가로프산 */
+    rect(g, -520, 1.6, 520, 900, 260, [244, 228, 180], 0.5, 6);     /* 코파카바나 해변 */
+  }
+
+  function buildSingapore(g) {
+    var col = [204, 212, 222], top = [230, 234, 240];
+    [-185, 0, 185].forEach(function (x) {
+      box(g, x, 0, 0, 74, 300, 116, col, 0, true);
+      box(g, x, 0, 0, 30, 300, 120, [176, 190, 206], 0, true);
+    });
+    box(g, 0, 300, 0, 580, 26, 134, top, 0, true);            /* 배 모양 옥상 */
+    box(g, 0, 326, 0, 470, 8, 84, [116, 192, 214], 0, true);  /* 하늘 수영장 */
+    fru(g, 250, 334, 0, 20, 4, 60, 8, top, 0, true);
+    /* 슈퍼트리 (커다란 나무 모양 탑) */
+    for (var i = 0; i < 5; i++) {
+      var tx = -300 + i * 150;
+      fru(g, tx, 0, 420, 16, 26, 130, 8, [128, 148, 120], 0, true);
+      fru(g, tx, 130, 420, 46, 8, 34, 8, [96, 168, 110], 0, true);
+    }
+  }
+
+  function buildBangkok(g) {
+    var wh = [242, 238, 228], gold = [230, 194, 96];
+    fru(g, 0,   0, 0, 156, 128, 40, 12, [232, 226, 212], 0, true);
+    fru(g, 0,  40, 0, 122,  92, 66, 12, wh, 0, true);
+    fru(g, 0, 106, 0,  88,  54, 128, 12, wh, 0, true);
+    fru(g, 0, 234, 0,  52,  20, 110, 12, wh, 0, true);
+    fru(g, 0, 344, 0,  18,   3,  76,  8, gold, 0, true);
+    [[-150,-150],[150,-150],[-150,150],[150,150]].forEach(function (o) {
+      fru(g, o[0],   0, o[1], 46, 32, 64, 10, wh, 0, true);
+      fru(g, o[0],  64, o[1], 32, 12, 76, 10, wh, 0, true);
+      fru(g, o[0], 140, o[1], 10,  2, 44,  8, gold, 0, true);
+    });
+    /* 황금 불탑 */
+    fru(g, 420, 0, 320, 60, 46, 40, 12, gold, 0, true);
+    fru(g, 420, 40, 320, 46, 10, 90, 12, gold, 0, true);
+  }
+
+  function buildCapeTown(g) {
+    var rock = [150, 134, 112];
+    fru(g, 0,   0, 0, 660, 500, 300, 12, rock, 0, true);
+    fru(g, 0, 300, 0, 500, 470,  70, 12, [162, 146, 124], 0, true);
+    disc(g, 0, 371, 0, 468, 16, [128, 146, 104], true, 3);      /* 평평한 꼭대기 */
+    fru(g, 620, 0, 520, 190, 90, 240, 10, [140, 126, 106], 0, true);  /* 라이언스 헤드 */
+    /* 케이블카 줄 */
+    for (var i = 0; i <= 12; i++) {
+      var t = i / 12;
+      box(g, 470 - t * 470, 60 + t * 310, 620 - t * 620, 26, 6, 6, [90, 92, 96], 0, true);
+    }
+  }
+
+  function buildAmsterdam(g) {
+    var water = [64, 118, 152];
+    rect(g, 0, 1.2, -120, 1900, 100, water, 0, 6);       /* 운하 두 줄 */
+    rect(g, 0, 1.2,  360, 1900, 100, water, 0, 6);
+    /* 풍차 세 대 */
+    [[-380, -420], [80, -470], [470, -400]].forEach(function (o, i) {
+      fru(g, o[0], 0, o[1], 46, 28, 100, 8, [196, 156, 116], 0, true);
+      fru(g, o[0], 100, o[1], 34, 0, 44, 8, [142, 92, 70], 0, true);
+      box(g, o[0], 104, o[1] - 30, 200, 14, 10, [240, 236, 226], 0, true);   /* 가로 날개 */
+      box(g, o[0], 14,  o[1] - 30,  14, 190, 10, [240, 236, 226], 0, true);  /* 세로 날개 */
+    });
+    /* 운하를 따라 늘어선 좁고 높은 집 */
+    var cols = [[186,120,96],[150,104,90],[204,146,116],[132,96,86]];
+    for (var i = 0; i < 22; i++) {
+      var x = -760 + i * 72;
+      var h = 76 + (i % 4) * 16;
+      box(g, x, 0, 20, 56, h, 60, cols[i % 4], 0, true);
+      fru(g, x, h, 20, 42, 0, 30, 4, [110, 84, 78], 0, true);
+    }
+    /* 다리 */
+    box(g, -180, 22, -120, 44, 10, 150, [216, 208, 194], 0, true);
+    box(g,  260, 22,  360, 44, 10, 150, [216, 208, 194], 0, true);
+  }
+
+  function buildBerlin(g) {
+    var st = [230, 224, 212], i;
+    /* 브란덴부르크 문 */
+    for (i = 0; i < 6; i++) {
+      fru(g, -125 + i * 50, 0,  0, 17, 15, 98, 8, st, 0, true);
+      fru(g, -125 + i * 50, 0, 62, 17, 15, 98, 8, st, 0, true);
+    }
+    box(g, 0,  98, 31, 310, 32, 116, st, 0, true);
+    box(g, 0, 130, 31,  76, 28,  38, [178, 170, 152], 0, true);   /* 네 마리 말 마차 */
+    /* 텔레비전 탑 */
+    fru(g, 480,   0, -340, 28, 15, 250, 12, [216, 220, 226], 0, true);
+    fru(g, 480, 250, -340, 20, 48,  32, 14, [234, 238, 244], 0, true);   /* 공 아래 */
+    fru(g, 480, 282, -340, 48, 18,  34, 14, [234, 238, 244], 0, true);   /* 공 위 */
+    fru(g, 480, 316, -340, 14,  2, 140,  8, [204, 210, 218], 0, true);
+  }
+
+  function buildBarcelona(g) {
+    var st = [232, 216, 186];
+    box(g, 0, 0, 0, 270, 96, 190, st, 0, true);
+    /* 뾰족한 탑들 — 가운데가 가장 높다 */
+    var sp = [[-96,-64,190],[-34,-70,235],[34,-70,235],[96,-64,190],
+              [-74, 66,215],[  0, 74,320],[ 74, 66,215]];
+    sp.forEach(function (s) {
+      fru(g, s[0], 96, s[1], 27, 5, s[2], 8, st, 0, true);
+      fru(g, s[0], 96 + s[2], s[1], 9, 0, 30, 6, [228, 190, 96], 0, true);
+    });
+    box(g, 0, 96, 0, 120, 40, 120, [222, 204, 172], 0, true);
+  }
+
+  function buildToronto(g) {
+    var c = [216, 220, 226];
+    fru(g, 0,   0, 0, 42, 19, 336, 10, c, 0, true);
+    fru(g, 0, 336, 0, 54, 54,  48, 12, [230, 234, 240], 0, true);   /* 전망대 */
+    fru(g, 0, 384, 0, 42, 22,  44, 12, c, 0, true);
+    fru(g, 0, 428, 0, 22, 22,  42, 10, [200, 206, 214], 0, true);
+    fru(g, 0, 470, 0,  6,  1, 160,  6, c, 0, true);
+    /* 받침 다리 세 개 */
+    for (var i = 0; i < 3; i++) {
+      var a = i / 3 * TAU;
+      box(g, Math.cos(a) * 46, 0, Math.sin(a) * 46, 26, 120, 26, [196, 202, 210], -a, true);
+    }
+    /* 지붕 열리는 야구장 */
+    fru(g, 340, 0, 280, 156, 148, 46, 16, [208, 208, 204], 0, true);
+    fru(g, 340, 46, 280, 148,  24, 62, 16, [220, 220, 216], 0, true);
+  }
+
+  function buildMexico(g) {
+    var st = [198, 166, 130], y = 0;
+    [[250, 62], [204, 56], [158, 50], [112, 46], [66, 40]].forEach(function (l) {
+      fru(g, 0, y, 0, l[0], l[0] * 0.85, l[1], 4, st, 0, true);
+      y += l[1];
+    });
+    box(g, 0, y, 0, 62, 28, 62, [176, 146, 112], 0, true);
+    /* 정면 계단 */
+    for (var i = 0; i < 8; i++) {
+      box(g, 0, i * 30, 250 - i * 26, 74, 30, 30, [184, 152, 118], 0, true);
+    }
+    /* 달의 피라미드 */
+    var y2 = 0;
+    [[170, 46], [132, 42], [92, 38]].forEach(function (l) {
+      fru(g, -560, y2, -420, l[0], l[0] * 0.84, l[1], 4, st, 0, true);
+      y2 += l[1];
+    });
+  }
+
+  /* ======================= 도시 한 채 만들기 ============================= */
+
+  function makeCity(c) {
+    var r = rngFrom(c.seed);
+    var g = G();
+
+    /* 섬 : 모래 → 잔디 (아주 멀리서도 보이도록 lm = true) */
+    disc(g, 0, 0.4, 0, 2250, 26, [236, 216, 158], true, 0);
+    disc(g, 0, 0.9, 0, 2020, 26, c.grass, true, 4);
+
+    /* 활주로 */
+    rect(g, 0, 1.4, -1240, 1500, 130, [78, 80, 86], 0, 8);
+    for (var m = -6; m <= 6; m++) rect(g, m * 100, 1.8, -1240, 52, 10, [235, 235, 230], 0, 12);
+    rect(g, 0, 1.5, -1080, 1300, 26, [212, 206, 190], 0, 10);
+    /* 터미널 + 관제탑 */
+    box(g, -180, 0, -1010, 320, 46, 90, [226, 228, 232]);
+    box(g,  120, 0, -1000, 40, 96, 40, [196, 200, 208]);
+    box(g,  120, 96, -1000, 62, 26, 62, [128, 176, 214]);
+
+    /* 랜드마크 */
+    c.build(g);
+
+    /* 일반 건물들 — 가운데(도심)일수록 높게 */
+    var i, tries = 0;
+    for (i = 0; i < 96 && tries < 700; tries++) {
+      var a = r() * TAU, rad = 470 + Math.pow(r(), 0.72) * 1420;
+      var x = Math.cos(a) * rad, z = Math.sin(a) * rad;
+      if (z < -880 && Math.abs(x) < 900) continue;          /* 공항 자리 비우기 */
+      if (Math.abs(x) < 500 && Math.abs(z) < 500) continue; /* 랜드마크 자리 */
+      if (c.noBuild && c.noBuild(x, z)) continue;           /* 도시마다 비워 둘 곳 */
+      var w = 52 + r() * 96, d = 52 + r() * 96;
+      var downtown = Math.max(0, 1 - rad / 1500);           /* 도심일수록 1 에 가까움 */
+      var h = (30 + Math.pow(r(), 1.45) * (170 + downtown * 340)) * c.tall;
+      var col = c.walls[(r() * c.walls.length) | 0];
+      box(g, x, 0, z, w, h, d, col, r() * 1.57);
+      if (r() < 0.5) box(g, x, h, z, w * 0.5, 10 + r() * 26, d * 0.5,
+                         [col[0] * 0.84, col[1] * 0.84, col[2] * 0.84], 0);
+      i++;
+    }
+
+    /* 나무 */
+    for (i = 0; i < 46; i++) {
+      var ta = r() * TAU, tr = 700 + r() * 1250;
+      var tx = Math.cos(ta) * tr, tz = Math.sin(ta) * tr;
+      if (tz < -880 && Math.abs(tx) < 900) continue;
+      if (c.noBuild && c.noBuild(tx, tz)) continue;
+      fru(g, tx, 0, tz, 4, 3, 16 + r() * 10, 5, [128, 100, 66]);
+      fru(g, tx, 20, tz, 20 + r() * 12, 0, 34 + r() * 22, 6,
+          [70 + r() * 40, 130 + r() * 40, 70 + r() * 20]);
+    }
+    return g;
+  }
+
+  /* ======================= 작은 무인도 ================================= */
+
+  function makeIslets() {
+    var r = rngFrom(9090), out = [], i, k;
+    for (i = 0; i < 110; i++) {
+      var x = (r() - 0.5) * SIZE, z = (r() - 0.5) * SIZE;
+      if (Math.hypot(x, z) < 2600) continue;
+      var g = G(), rad = 180 + r() * 380;
+      disc(g, 0, 0.4, 0, rad, 14, [238, 220, 166], true, 0);
+      disc(g, 0, 0.9, 0, rad * 0.8, 14, [122, 172, 96], true, 4);
+      for (k = 0; k < 5 + (r() * 6 | 0); k++) {
+        var a = r() * TAU, d = r() * rad * 0.6;
+        var tx = Math.cos(a) * d, tz = Math.sin(a) * d;
+        fru(g, tx, 0, tz, 4, 3, 14 + r() * 8, 5, [132, 102, 68]);
+        fru(g, tx, 18, tz, 18 + r() * 12, 0, 30 + r() * 20, 6, [78, 142, 84]);
+      }
+      if (r() < 0.35) fru(g, 0, 0, 0, 90 + r() * 70, 20, 60 + r() * 70, 8, [140, 150, 130]);
+      out.push({ x: x, z: z, geom: g });
+    }
+    return out;
+  }
+
+  /* =================================================================== *
+   *  다른 교통기관 — 배 · 다른 비행기 · 열기구
+   *  (유치원 '교통기관' 주제에 맞춰 하늘과 바다에 친구들을 띄웁니다)
+   * =================================================================== */
+
+  var SHIP = (function () {
+    var g = G();
+    box(g, 0,  0,   4, 34, 15, 108, [198,  68,  60]);   /* 배 몸통 */
+    box(g, 0, 15,   6, 30,  7,  88, [238, 240, 242]);   /* 갑판 */
+    box(g, 0, 22, -22, 24, 18,  30, [238, 240, 242]);   /* 조타실 */
+    fru(g, 0, 40, -24,  6,  5,  20, 8, [246, 196,  62]); /* 굴뚝 */
+    box(g, 0, 15,  46, 16,  6,  22, [222, 226, 230]);   /* 뱃머리 */
+    rect(g, 0, 0.6, -120, 34, 150, [214, 236, 248]);    /* 물살 자국 */
+    return g;
+  })();
+
+  var JET = (function () {
+    var g = G();
+    box(g,   0,  0,   0, 14, 13,  86, [242, 244, 248]);   /* 동체 */
+    box(g,   0,  2,  -4, 98,  4,  24, [230, 234, 240]);   /* 날개 */
+    box(g,   0,  9, -34,  5, 24,  18, [ 72, 140, 214]);   /* 꼬리 날개 */
+    box(g,   0,  9, -34, 40,  3,  12, [230, 234, 240]);
+    box(g, -26, -6,   0, 11, 10,  22, [178, 186, 196]);   /* 엔진 */
+    box(g,  26, -6,   0, 11, 10,  22, [178, 186, 196]);
+    box(g,   0,  5,  10, 15,  4,  60, [ 72, 140, 214]);   /* 파란 줄무늬 */
+    return g;
+  })();
+
+  var BALLOONS = [
+    [[232, 88, 84],  [250, 210, 90]],
+    [[92, 168, 226], [246, 246, 250]],
+    [[124, 198, 120],[250, 154, 96]],
+    [[196, 128, 220],[250, 232, 120]]
+  ].map(function (pal) {
+    var g = G();
+    box(g, 0,  0, 0, 16, 13, 16, [148, 108,  66]);          /* 바구니 */
+    fru(g, 0, 18, 0,  5, 30, 26, 10, pal[0]);
+    fru(g, 0, 44, 0, 30, 27, 20, 10, pal[1]);
+    fru(g, 0, 64, 0, 27,  5, 26, 10, pal[0]);
+    return g;
+  });
+
+  function makeTraffic() {
+    var r = rngFrom(7777), i, t = { ships: [], jets: [], balloons: [] };
+    for (i = 0; i < 225; i++)
+      t.ships.push({ x: (r() - 0.5) * SIZE, z: (r() - 0.5) * SIZE, y: 0,
+                     a: r() * TAU, v: 5 + r() * 8 });
+    for (i = 0; i < 56; i++)
+      t.jets.push({ x: (r() - 0.5) * SIZE, z: (r() - 0.5) * SIZE, y: 620 + r() * 1700,
+                    a: r() * TAU, v: 70 + r() * 70 });
+    for (i = 0; i < 46; i++)
+      t.balloons.push({ x: (r() - 0.5) * SIZE, z: (r() - 0.5) * SIZE, y: 260 + r() * 560,
+                        a: r() * TAU, v: 3 + r() * 4, p: (r() * BALLOONS.length) | 0 });
+    return t;
+  }
+
+  function wrapPos(v) { return ((v + SIZE / 2) % SIZE + SIZE) % SIZE - SIZE / 2; }
+
+  /* ======================= 구름 ======================================== */
+
+  function makeClouds() {
+    var r = rngFrom(4242), out = [], i, k;
+    for (i = 0; i < 620; i++) {
+      var puffs = [], n = 4 + (r() * 4 | 0), base = 60 + r() * 110;
+      for (k = 0; k < n; k++) {
+        puffs.push({
+          dx: (r() - 0.5) * base * 2.6,
+          dy: (r() - 0.5) * base * 0.5,
+          dz: (r() - 0.5) * base * 2.0,
+          r: base * (0.55 + r() * 0.6)
+        });
+      }
+      out.push({
+        x: (r() - 0.5) * SIZE,
+        y: 620 + r() * 1900,
+        z: (r() - 0.5) * SIZE,
+        a: 0.62 + r() * 0.3,
+        puffs: puffs
+      });
+    }
+    return out;
+  }
+
+  /* ======================= 준비 & 그리기 ================================ */
+
+  var cities = [], islets = [], clouds = [], traffic = null;
+
+  function init() {
+    cities = CITY_DATA.map(function (c) {
+      return {
+        id: c.id, name: c.name, country: c.country, flag: c.flag,
+        landmark: c.landmark, fact: c.fact, real: c.real,
+        x: c.pos[0], z: c.pos[1],
+        geom: makeCity(c)
+      };
+    });
+    islets  = makeIslets();
+    clouds  = makeClouds();
+    traffic = makeTraffic();
+  }
+
+  /* 도형 하나를 렌더러에 넘긴다. ang 은 덩어리 전체를 돌리는 각도 */
+  function emit(R, p, ox, oy, oz, ang) {
+    var x = p.x, z = p.z;
+    if (ang) {
+      var ca = Math.cos(ang), sa = Math.sin(ang);
+      x = p.x * ca + p.z * sa;
+      z = -p.x * sa + p.z * ca;
+    }
+    x += ox; z += oz;
+    var y = p.y + oy, rr = (p.r || 0) + (ang || 0);
+    switch (p.t) {
+      case 'box':  R.addBox(x, y, z, p.w, p.h, p.d, p.c, rr); break;
+      case 'fru':  R.addFrustum(x, y, z, p.r0, p.r1, p.h, p.n, p.c, rr); break;
+      case 'disc': R.addDisc(x, y, z, p.r0, p.n, p.c, p.b); break;
+      case 'rect': R.addRect(x, y, z, p.w, p.d, p.c, rr, p.b); break;
+    }
+  }
+
+  function drawGeom(R, geom, ox, oy, oz, level, ang) {
+    for (var i = 0; i < geom.length; i++) {
+      var p = geom[i];
+      if (level === 2 && !p.lm) continue;         /* 아주 멀면 랜드마크만 */
+      if (level === 1 && !(p.big || p.lm)) continue;
+      emit(R, p, ox, oy, oz, ang);
+    }
+  }
+
+  /* 움직이는 교통기관의 지금 위치 */
+  function movedPos(o, t) {
+    return [wrapPos(o.x + Math.sin(o.a) * o.v * t),
+            wrapPos(o.z + Math.cos(o.a) * o.v * t)];
+  }
+
+  function drawFleet(R, camPos, list, geomOf, t, maxDist) {
+    for (var i = 0; i < list.length; i++) {
+      var o = list[i], p = movedPos(o, t);
+      var dx = wrapDelta(p[0], camPos[0]), dz = wrapDelta(p[1], camPos[2]);
+      if (Math.abs(dx) > maxDist || Math.abs(dz) > maxDist) continue;
+      if (Math.hypot(dx, dz) > maxDist) continue;
+      drawGeom(R, geomOf(o), camPos[0] + dx, o.y, camPos[2] + dz, 0, o.a);
+    }
+  }
+
+  /* 이번 프레임에 보일 것들을 모두 렌더러에 담는다 */
+  function collect(R, camPos, time) {
+    var i, c, dx, dz, d;
+
+    for (i = 0; i < cities.length; i++) {
+      c = cities[i];
+      dx = wrapDelta(c.x, camPos[0]); dz = wrapDelta(c.z, camPos[2]);
+      d = Math.hypot(dx, dz);
+      if (d > 16500) continue;
+      var lv = d > 9000 ? 2 : (d > 4800 ? 1 : 0);
+      drawGeom(R, c.geom, camPos[0] + dx, 0, camPos[2] + dz, lv, 0);
+    }
+
+    for (i = 0; i < islets.length; i++) {
+      c = islets[i];
+      dx = wrapDelta(c.x, camPos[0]); dz = wrapDelta(c.z, camPos[2]);
+      d = Math.hypot(dx, dz);
+      if (d > 12000) continue;
+      drawGeom(R, c.geom, camPos[0] + dx, 0, camPos[2] + dz, d > 4200 ? 1 : 0, 0);
+    }
+
+    drawFleet(R, camPos, traffic.ships,    function ()  { return SHIP; },      time, 7500);
+    drawFleet(R, camPos, traffic.jets,     function ()  { return JET;  },      time, 9500);
+    drawFleet(R, camPos, traffic.balloons, function (o) { return BALLOONS[o.p]; }, time, 6000);
+
+    for (i = 0; i < clouds.length; i++) {
+      c = clouds[i];
+      dx = wrapDelta(c.x, camPos[0]); dz = wrapDelta(c.z, camPos[2]);
+      if (Math.abs(dx) > 9000 || Math.abs(dz) > 9000) continue;
+      var bx = camPos[0] + dx, bz = camPos[2] + dz;
+      for (var k = 0; k < c.puffs.length; k++) {
+        var q = c.puffs[k];
+        R.addPuff(bx + q.dx, c.y + q.dy, bz + q.dz, q.r, [255, 255, 255], c.a);
+      }
+    }
+  }
+
+  return {
+    SIZE: SIZE,
+    init: init,
+    collect: collect,
+    wrapDelta: wrapDelta,
+    cities: function () { return cities; }
+  };
+})();
+
+</script>
+<script>
+/* ===== js/aircraft.js ===== */
+/* =========================================================================
+ *  aircraft.js — 비행기 움직임 (유치원용으로 아주 부드럽게)
+ *
+ *  · 절대 추락하지 않습니다. 손을 놓으면 스스로 수평으로 돌아옵니다.
+ *  · 조종간을 기울이면(roll) 비행기가 그쪽으로 천천히 돌아갑니다.
+ * ========================================================================= */
+'use strict';
+
+function Aircraft() {
+  this.pos   = [0, 900, -2600];   // 서울 남쪽 하늘에서 시작
+  this.yaw   = 0;                 // 북쪽을 바라봄
+  this.pitch = 0;
+  this.roll  = 0;
+  this.throttle = 0.55;
+  this.speed = 150;               // m/s
+}
+
+Aircraft.MIN_ALT = 60;
+Aircraft.MAX_ALT = 6000;
+
+Aircraft.prototype.forward = function () {
+  var cp = Math.cos(this.pitch);
+  return [Math.sin(this.yaw) * cp, Math.sin(this.pitch), Math.cos(this.yaw) * cp];
+};
+
+Aircraft.prototype.update = function (dt, cmd) {
+  var clamp = Engine3D.clamp;
+
+  /* --- 출력 : 몸으로 조종할 때는 목표값으로 바로 맞춘다 --- */
+  if (cmd.throttleAbs !== null && cmd.throttleAbs !== undefined) {
+    this.throttle += (cmd.throttleAbs - this.throttle) * Math.min(1, dt * 1.8);
+  } else {
+    this.throttle = clamp(this.throttle + cmd.throttle * 0.45 * dt, 0, 1);
+  }
+  this.throttle = clamp(this.throttle, 0, 1);
+  var target = 55 + this.throttle * 235;                 // 55 ~ 290 m/s
+  this.speed += (target - this.speed) * Math.min(1, dt * 0.55);
+
+  /* --- 좌우 기울이기 --- */
+  this.roll += cmd.roll * 1.35 * dt;
+  if (Math.abs(cmd.roll) < 0.04) this.roll *= Math.pow(0.22, dt);   // 자동 수평
+  this.roll = clamp(this.roll, -1.05, 1.05);
+
+  /* --- 기수 올리고 내리기 --- */
+  this.pitch += cmd.pitch * 0.62 * dt;
+  if (Math.abs(cmd.pitch) < 0.04) this.pitch *= Math.pow(0.34, dt);
+  this.pitch = clamp(this.pitch, -0.5, 0.55);
+
+  /* --- 기울인 만큼 방향이 바뀐다 --- */
+  this.yaw += Math.sin(this.roll) * 0.78 * dt * (0.55 + this.speed / 420);
+  if (this.yaw >  Math.PI) this.yaw -= Math.PI * 2;
+  if (this.yaw < -Math.PI) this.yaw += Math.PI * 2;
+
+  /* --- 앞으로 나아가기 --- */
+  var f = this.forward();
+  this.pos[0] += f[0] * this.speed * dt;
+  this.pos[1] += f[1] * this.speed * dt;
+  this.pos[2] += f[2] * this.speed * dt;
+
+  /* --- 너무 낮거나 높지 않게 (착한 안전장치) --- */
+  if (this.pos[1] < Aircraft.MIN_ALT) {
+    this.pos[1] = Aircraft.MIN_ALT;
+    if (this.pitch < 0) this.pitch += (0.12 - this.pitch) * Math.min(1, dt * 2.4);
+  }
+  if (this.pos[1] > Aircraft.MAX_ALT) {
+    this.pos[1] = Aircraft.MAX_ALT;
+    if (this.pitch > 0) this.pitch *= 0.9;
+  }
+
+  /* --- 세계는 사방으로 이어져 있다 --- */
+  var S = World.SIZE;
+  if (this.pos[0] >  S / 2) this.pos[0] -= S;
+  if (this.pos[0] < -S / 2) this.pos[0] += S;
+  if (this.pos[2] >  S / 2) this.pos[2] -= S;
+  if (this.pos[2] < -S / 2) this.pos[2] += S;
+};
+
+/* 자동 조종: 목표 도시를 향해 스스로 날아갑니다 */
+Aircraft.prototype.autopilot = function (target, cmd) {
+  var dx = World.wrapDelta(target.x, this.pos[0]);
+  var dz = World.wrapDelta(target.z, this.pos[2]);
+  var want = Math.atan2(dx, dz);
+  var err = want - this.yaw;
+  while (err >  Math.PI) err -= Math.PI * 2;
+  while (err < -Math.PI) err += Math.PI * 2;
+
+  var wantRoll = Engine3D.clamp(err * 1.6, -0.85, 0.85);
+  cmd.roll  = Engine3D.clamp((wantRoll - this.roll) * 3.2, -1, 1);
+
+  var wantAlt = 1050;
+  var wantPitch = Engine3D.clamp((wantAlt - this.pos[1]) * 0.0016, -0.16, 0.2);
+  cmd.pitch = Engine3D.clamp((wantPitch - this.pitch) * 5.0, -1, 1);
+
+  var dist = Math.hypot(dx, dz);
+  cmd.throttleAbs = dist < 2600 ? 0.42 : 0.85;
+};
+
+</script>
+<script>
+/* ===== js/cockpit.js ===== */
+/* =========================================================================
+ *  cockpit.js — 조종석 (창틀 + 계기판 + 조종간)
+ *
+ *  3D 화면 위에 Canvas 2D 로 덧그립니다.
+ *  계기는 4개: 속도계 · 고도계 · 수평의 · 나침반
+ * ========================================================================= */
+'use strict';
+
+var Cockpit = (function () {
+
+  var TAU = Math.PI * 2;
+
+  /* 계기판 높이 (화면 크기에 맞춰 자동으로) */
+  function panelHeight(W, H) {
+    return Math.round(Math.max(170, Math.min(H * 0.36, 360)));
+  }
+
+  /* ---------------------------------------------------------------- 창틀 */
+  function windowFrame(ctx, W, H, panelY) {
+    var m  = Math.max(14, W * 0.030);        // 좌우 기둥 두께
+    var mt = Math.max(12, H * 0.045);        // 위쪽 두께
+    var rad = Math.min(70, W * 0.09);
+
+    ctx.save();
+    /* 유리 구멍을 뚫은 조종석 껍데기 */
+    ctx.beginPath();
+    ctx.rect(0, 0, W, panelY + 2);
+    roundRectPath(ctx, m, mt, W - m * 2, panelY - mt + 6, rad);
+    ctx.fillStyle = '#2a2f36';
+    ctx.fill('evenodd');
+
+    /* 창틀 안쪽 밝은 테두리 */
+    ctx.beginPath();
+    roundRectPath(ctx, m, mt, W - m * 2, panelY - mt + 6, rad);
+    ctx.strokeStyle = 'rgba(255,255,255,0.13)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    /* 위쪽 햇빛 가리개 */
+    var g = ctx.createLinearGradient(0, 0, 0, mt + 26);
+    g.addColorStop(0, '#1b1f25');
+    g.addColorStop(1, '#343b44');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, mt);
+
+    /* 유리에 비친 빛 */
+    ctx.save();
+    ctx.beginPath();
+    roundRectPath(ctx, m, mt, W - m * 2, panelY - mt + 6, rad);
+    ctx.clip();
+    var gl = ctx.createLinearGradient(m, mt, W * 0.62, panelY);
+    gl.addColorStop(0,    'rgba(255,255,255,0.16)');
+    gl.addColorStop(0.35, 'rgba(255,255,255,0.03)');
+    gl.addColorStop(0.75, 'rgba(255,255,255,0.00)');
+    ctx.fillStyle = gl;
+    ctx.fillRect(0, 0, W, panelY);
+    ctx.restore();
+    ctx.restore();
+  }
+
+  /* -------------------------------------------------------------- 계기판 */
+  function draw(ctx, W, H, s) {
+    var panelH = panelHeight(W, H);
+    var panelY = H - panelH;
+
+    windowFrame(ctx, W, H, panelY);
+
+    /* 계기판 몸통 */
+    var g = ctx.createLinearGradient(0, panelY - 18, 0, H);
+    g.addColorStop(0,    '#454d57');
+    g.addColorStop(0.10, '#2c323a');
+    g.addColorStop(0.55, '#232830');
+    g.addColorStop(1,    '#171b21');
+    ctx.beginPath();
+    roundRectPath(ctx, -30, panelY - 20, W + 60, panelH + 60, Math.min(46, W * 0.05));
+    ctx.fillStyle = g;
+    ctx.fill();
+
+    /* 대시보드 윗선(글레어실드) */
+    ctx.beginPath();
+    roundRectPath(ctx, -30, panelY - 20, W + 60, 26, 20);
+    ctx.fillStyle = '#11151a';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, panelY + 6); ctx.lineTo(W, panelY + 6);
+    ctx.stroke();
+
+    /* --- 배치 : 위쪽 70% 는 계기, 아래쪽은 조종간 자리 --- */
+    var R   = Math.min((panelH - 30) * 0.33, W * 0.072, 80);
+    var cy  = panelY + 16 + R + 8;
+    var gap = R * 2.62;
+    var cx0 = W * 0.5 - gap * 1.5;
+
+    gaugeSpeed   (ctx, cx0,           cy, R, s.speedKmh);
+    gaugeAttitude(ctx, cx0 + gap,     cy, R, s.pitch, s.roll);
+    gaugeAlt     (ctx, cx0 + gap * 2, cy, R, s.altM);
+    gaugeCompass (ctx, cx0 + gap * 3, cy, R, s.yaw, s.bearing, s.destFlag);
+
+    /* 왼쪽: 경고등 */
+    lamps(ctx, Math.max(10, cx0 - R - 92), cy - R - 16, s);
+
+    /* 오른쪽: 출력 레버 */
+    throttleLever(ctx, Math.min(W - 62, cx0 + gap * 3 + R + 56), cy - R, R * 2, s.throttle);
+
+    /* 아래: 조종간 */
+    if (panelH > 200) yoke(ctx, W * 0.5, H + panelH * 0.11, panelH * 0.55, s.roll, s.pitch);
+
+    /* 지금 어느 도시 위를 날고 있는지 — 계기판 바로 위에 띄운다 */
+    if (s.overCity) {
+      ctx.save();
+      var fs = Math.round(Math.min(20, W * 0.017));
+      ctx.font = '800 ' + fs + 'px "Apple SD Gothic Neo", sans-serif';
+      var txt = '★ ' + s.overCity + ' 상공 ★';
+      var tw = ctx.measureText(txt).width + 30;
+      ctx.beginPath();
+      roundRectPath(ctx, W * 0.5 - tw / 2, panelY - fs * 2.4, tw, fs * 1.9, fs);
+      ctx.fillStyle = 'rgba(10,16,22,0.78)'; ctx.fill();
+      ctx.strokeStyle = '#7fe0a8'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#7fe0a8';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(txt, W * 0.5, panelY - fs * 1.45);
+      ctx.restore();
+    }
+  }
+
+  /* -------------------------------------------------- 계기 공통 껍데기 */
+  function bezel(ctx, x, y, r) {
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, y + 4, r + 7, 0, TAU);
+    ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
+
+    var g = ctx.createLinearGradient(x - r, y - r, x + r, y + r);
+    g.addColorStop(0,    '#9aa3ad');
+    g.addColorStop(0.42, '#5b636d');
+    g.addColorStop(1,    '#2b3138');
+    ctx.beginPath(); ctx.arc(x, y, r + 7, 0, TAU);
+    ctx.fillStyle = g; ctx.fill();
+
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU);
+    ctx.fillStyle = '#0e131a'; ctx.fill();
+    ctx.restore();
+  }
+
+  function glass(ctx, x, y, r) {
+    var g = ctx.createLinearGradient(x - r, y - r, x + r * 0.3, y + r * 0.7);
+    g.addColorStop(0,   'rgba(255,255,255,0.20)');
+    g.addColorStop(0.45,'rgba(255,255,255,0.03)');
+    g.addColorStop(1,   'rgba(255,255,255,0.00)');
+    ctx.beginPath(); ctx.arc(x, y, r, 0, TAU);
+    ctx.fillStyle = g; ctx.fill();
+  }
+
+  function label(ctx, x, y, r, text) {
+    ctx.save();
+    ctx.font = '700 ' + Math.round(r * 0.19) + 'px "Apple SD Gothic Neo", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.55)';
+    ctx.fillText(text, x, y + r * 0.76);
+    ctx.restore();
+  }
+
+  function needle(ctx, x, y, r, ang, color, wide) {
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(ang);
+    ctx.beginPath();
+    ctx.moveTo(0, -r * 0.84);
+    ctx.lineTo(wide, r * 0.12);
+    ctx.lineTo(-wide, r * 0.12);
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 4;
+    ctx.fill();
+    ctx.restore();
+    ctx.beginPath(); ctx.arc(x, y, r * 0.09, 0, TAU);
+    ctx.fillStyle = '#d8dde3'; ctx.fill();
+  }
+
+  /* 눈금이 있는 원형 계기 (270도 범위)
+     숫자는 가운데 큰 창에만 띄우고, 눈금은 알록달록한 띠로 보여 줍니다. */
+  function dial(ctx, x, y, r, value, max, name, arcColor) {
+    bezel(ctx, x, y, r);
+    var A0 = -Math.PI * 0.75, SPAN = Math.PI * 1.5;
+    var t = Math.max(0, Math.min(1, value / max));
+    var i;
+
+    /* 값 띠 */
+    ctx.save();
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.855, A0 - Math.PI / 2, A0 + SPAN - Math.PI / 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = r * 0.13; ctx.stroke();
+    if (t > 0.004) {
+      ctx.beginPath();
+      ctx.arc(x, y, r * 0.855, A0 - Math.PI / 2, A0 + SPAN * t - Math.PI / 2);
+      ctx.strokeStyle = arcColor; ctx.lineWidth = r * 0.13; ctx.stroke();
+    }
+    ctx.restore();
+
+    /* 눈금 */
+    ctx.save();
+    for (i = 0; i <= 24; i++) {
+      var a = A0 + SPAN * (i / 24);
+      var big = (i % 4 === 0);
+      var r1 = r * (big ? 0.58 : 0.66);
+      ctx.beginPath();
+      ctx.moveTo(x + Math.sin(a) * r1,       y - Math.cos(a) * r1);
+      ctx.lineTo(x + Math.sin(a) * r * 0.74, y - Math.cos(a) * r * 0.74);
+      ctx.strokeStyle = big ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.30)';
+      ctx.lineWidth = big ? 2.4 : 1.2;
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    needle(ctx, x, y, r, A0 + SPAN * t, '#e9edf2', r * 0.05);
+
+    /* 숫자 표시창 */
+    var bw = r * 1.04, bh = r * 0.32;
+    ctx.beginPath();
+    roundRectPath(ctx, x - bw / 2, y + r * 0.22, bw, bh, 5);
+    ctx.fillStyle = 'rgba(0,0,0,0.70)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.save();
+    ctx.font = '700 ' + Math.round(r * 0.26) + 'px ui-monospace, Menlo, monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#8ef0b6';
+    ctx.fillText(String(Math.round(value)), x, y + r * 0.39);
+    ctx.restore();
+
+    label(ctx, x, y, r, name);
+    glass(ctx, x, y, r);
+  }
+
+  function gaugeSpeed(ctx, x, y, r, kmh) {
+    dial(ctx, x, y, r, kmh, 1200, '속도 km/h', '#ff8a5c');
+  }
+  function gaugeAlt(ctx, x, y, r, m) {
+    dial(ctx, x, y, r, m, 6000, '고도 m', '#7ec8ff');
+  }
+
+  /* 인공 수평의 */
+  function gaugeAttitude(ctx, x, y, r, pitch, roll) {
+    bezel(ctx, x, y, r);
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, y, r * 0.93, 0, TAU); ctx.clip();
+    ctx.translate(x, y);
+    ctx.rotate(-roll);
+    var off = pitch * r * 1.7;
+    ctx.fillStyle = '#3d8fd6'; ctx.fillRect(-r * 2, -r * 2 + off, r * 4, r * 2);
+    ctx.fillStyle = '#8f6034'; ctx.fillRect(-r * 2, off, r * 4, r * 2);
+    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(-r * 2, off); ctx.lineTo(r * 2, off); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.75)'; ctx.lineWidth = 1.6;
+    for (var k = -3; k <= 3; k++) {
+      if (!k) continue;
+      var yy = off - k * r * 0.30;
+      var ww = (k % 2 === 0) ? r * 0.36 : r * 0.20;
+      ctx.beginPath(); ctx.moveTo(-ww, yy); ctx.lineTo(ww, yy); ctx.stroke();
+    }
+    ctx.restore();
+
+    /* 고정된 비행기 표시 */
+    ctx.save();
+    ctx.strokeStyle = '#ffd23f'; ctx.lineWidth = 3.4; ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x - r * 0.55, y); ctx.lineTo(x - r * 0.16, y);
+    ctx.moveTo(x + r * 0.16, y); ctx.lineTo(x + r * 0.55, y);
+    ctx.moveTo(x, y - r * 0.14); ctx.lineTo(x, y + r * 0.02);
+    ctx.stroke();
+    ctx.restore();
+
+    /* 기울기 눈금 */
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 1.6;
+    [-60, -30, -15, 0, 15, 30, 60].forEach(function (deg) {
+      var a = deg * Math.PI / 180;
+      ctx.beginPath();
+      ctx.moveTo(x + Math.sin(a) * r * 0.93, y - Math.cos(a) * r * 0.93);
+      ctx.lineTo(x + Math.sin(a) * r * 0.80, y - Math.cos(a) * r * 0.80);
+      ctx.stroke();
+    });
+    ctx.restore();
+    label(ctx, x, y, r, '수평의');
+    glass(ctx, x, y, r);
+  }
+
+  /* 나침반 + 목적지 화살표 */
+  function gaugeCompass(ctx, x, y, r, yaw, bearing, flag) {
+    bezel(ctx, x, y, r);
+    var dirs = ['북', '동', '남', '서'];
+    ctx.save();
+    ctx.translate(x, y); ctx.rotate(-yaw);
+    for (var i = 0; i < 24; i++) {
+      var a = i / 24 * TAU;
+      var big = (i % 6 === 0);
+      ctx.beginPath();
+      ctx.moveTo(Math.sin(a) * r * (big ? 0.72 : 0.82), -Math.cos(a) * r * (big ? 0.72 : 0.82));
+      ctx.lineTo(Math.sin(a) * r * 0.92, -Math.cos(a) * r * 0.92);
+      ctx.strokeStyle = big ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.32)';
+      ctx.lineWidth = big ? 2.2 : 1;
+      ctx.stroke();
+    }
+    for (i = 0; i < 4; i++) {
+      var aa = i / 4 * TAU;
+      var px = Math.sin(aa) * r * 0.56, py = -Math.cos(aa) * r * 0.56;
+      ctx.save();
+      ctx.translate(px, py); ctx.rotate(yaw);     /* 글자는 항상 똑바로 */
+      ctx.font = '700 ' + Math.round(r * 0.26) + 'px "Apple SD Gothic Neo", sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = i === 0 ? '#ff6b5c' : 'rgba(255,255,255,0.85)';
+      ctx.fillText(dirs[i], 0, 0);
+      ctx.restore();
+    }
+    ctx.restore();
+
+    /* 목적지 방향 화살표 (분홍) */
+    if (bearing !== null && bearing !== undefined) {
+      var rel = bearing - yaw;
+      ctx.save();
+      ctx.translate(x, y); ctx.rotate(rel);
+      ctx.beginPath();
+      ctx.moveTo(0, -r * 0.66);
+      ctx.lineTo(r * 0.15, -r * 0.40);
+      ctx.lineTo(r * 0.055, -r * 0.40);
+      ctx.lineTo(r * 0.055, r * 0.42);
+      ctx.lineTo(-r * 0.055, r * 0.42);
+      ctx.lineTo(-r * 0.055, -r * 0.40);
+      ctx.lineTo(-r * 0.15, -r * 0.40);
+      ctx.closePath();
+      ctx.fillStyle = '#ff5fd0';
+      ctx.fill();
+      ctx.restore();
+    }
+    /* 위쪽 고정 표식 */
+    ctx.beginPath();
+    ctx.moveTo(x, y - r * 0.98); ctx.lineTo(x - r * 0.09, y - r * 0.80);
+    ctx.lineTo(x + r * 0.09, y - r * 0.80); ctx.closePath();
+    ctx.fillStyle = '#ffd23f'; ctx.fill();
+
+    label(ctx, x, y, r, '나침반');
+    glass(ctx, x, y, r);
+  }
+
+  /* 경고등 */
+  function lamps(ctx, x, y, s) {
+    var w = 84, h = 26, gap = 8;
+    var items = [
+      ['자동조종', s.autopilot, '#4ade80'],
+      ['몸조종',   s.camera,    '#c084fc'],
+      ['저고도',   s.lowAlt,    '#fbbf24'],
+      ['소리',     s.sound,     '#60a5fa']
+    ];
+    ctx.save();
+    ctx.font = '700 12px "Apple SD Gothic Neo", sans-serif';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (var i = 0; i < items.length; i++) {
+      var yy = y + i * (h + gap);
+      ctx.beginPath(); roundRectPath(ctx, x, yy, w, h, 6);
+      ctx.fillStyle = items[i][1] ? items[i][2] : 'rgba(255,255,255,0.07)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = items[i][1] ? 'rgba(0,0,0,0.78)' : 'rgba(255,255,255,0.38)';
+      ctx.fillText(items[i][0], x + w / 2, yy + h / 2 + 1);
+    }
+    ctx.restore();
+  }
+
+  /* 출력(스로틀) 레버 */
+  function throttleLever(ctx, x, y, h, v) {
+    var w = 26;
+    ctx.save();
+    ctx.beginPath(); roundRectPath(ctx, x - w / 2, y, w, h, 12);
+    ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    var fh = (h - 10) * v;
+    ctx.beginPath(); roundRectPath(ctx, x - w / 2 + 4, y + h - 5 - fh, w - 8, fh, 8);
+    var g = ctx.createLinearGradient(0, y + h, 0, y);
+    g.addColorStop(0, '#3ddc84'); g.addColorStop(1, '#ffb020');
+    ctx.fillStyle = g; ctx.fill();
+
+    var ky = y + h - 5 - fh;
+    ctx.beginPath(); roundRectPath(ctx, x - w / 2 - 8, ky - 9, w + 16, 18, 7);
+    ctx.fillStyle = '#e8ecf1'; ctx.fill();
+    ctx.strokeStyle = '#7b828a'; ctx.lineWidth = 1.5; ctx.stroke();
+
+    ctx.font = '700 12px "Apple SD Gothic Neo", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = 'rgba(255,255,255,0.6)';
+    ctx.fillText('출력', x, y - 8);
+    ctx.fillStyle = '#8ef0b6';
+    ctx.fillText(Math.round(v * 100) + '%', x, y + h + 16);
+    ctx.restore();
+  }
+
+  /* 조종간 */
+  function yoke(ctx, cx, cy, r, roll, pitch) {
+    ctx.save();
+    ctx.translate(cx, cy + pitch * r * 0.16);
+    ctx.rotate(roll * 0.85);
+    ctx.lineCap = 'round';
+
+    ctx.strokeStyle = '#1b1f25'; ctx.lineWidth = r * 0.20;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.72, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
+    ctx.strokeStyle = '#39414b'; ctx.lineWidth = r * 0.13;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.72, Math.PI * 1.08, Math.PI * 1.92); ctx.stroke();
+
+    /* 손잡이 */
+    [-1, 1].forEach(function (sgn) {
+      var a = sgn > 0 ? Math.PI * 1.92 : Math.PI * 1.08;
+      var hx = Math.cos(a) * r * 0.72, hy = Math.sin(a) * r * 0.72;
+      ctx.save();
+      ctx.translate(hx, hy);
+      ctx.beginPath(); roundRectPath(ctx, -r * 0.11, -r * 0.20, r * 0.22, r * 0.42, r * 0.10);
+      ctx.fillStyle = '#20252c'; ctx.fill();
+      ctx.strokeStyle = '#4b5561'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.restore();
+    });
+
+    ctx.strokeStyle = '#2b323a'; ctx.lineWidth = r * 0.16;
+    ctx.beginPath(); ctx.moveTo(0, -r * 0.10); ctx.lineTo(0, r * 0.55); ctx.stroke();
+    ctx.restore();
+  }
+
+  /* 둥근 사각형 경로 */
+  function roundRectPath(ctx, x, y, w, h, r) {
+    r = Math.min(r, w / 2, h / 2);
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y,     x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x,     y + h, r);
+    ctx.arcTo(x,     y + h, x,     y,     r);
+    ctx.arcTo(x,     y,     x + w, y,     r);
+    ctx.closePath();
+  }
+
+  return { draw: draw, panelHeight: panelHeight };
+})();
+
+</script>
+<script>
+/* ===== js/input.js ===== */
+/* =========================================================================
+ *  input.js — 조종 입력 (키보드 · 화면 버튼 · 마우스/손가락 · 카메라 신체 인식)
+ *
+ *  손이나 키보드를 쓰면 그 입력이 우선이고,
+ *  가만히 있으면 카메라가 읽은 몸동작이 조종을 이어받습니다.
+ * ========================================================================= */
+'use strict';
+
+var Input = (function () {
+
+  var keys  = Object.create(null);
+  var touch = { up: 0, down: 0, left: 0, right: 0, thrUp: 0, thrDown: 0 };
+  var drag  = null;                       // 화면을 끌어서 조종할 때
+  var cmd   = { pitch: 0, roll: 0, throttle: 0, throttleAbs: null, manual: false };
+  var onAction = function () {};          // 스페이스/N 같은 단축키 알림
+
+  function init(canvas, actionHandler) {
+    if (actionHandler) onAction = actionHandler;
+
+    window.addEventListener('keydown', function (e) {
+      if (e.repeat) { return; }
+      keys[e.code] = 1;
+      if (e.code === 'Space')  { e.preventDefault(); onAction('autopilot'); }
+      if (e.code === 'KeyN')   { onAction('nextCity'); }
+      if (e.code === 'KeyM')   { onAction('sound'); }
+      if (e.code === 'KeyP')   { onAction('passport'); }
+      if (e.code === 'KeyC')   { onAction('camera'); }
+      if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].indexOf(e.code) >= 0) e.preventDefault();
+    });
+    window.addEventListener('keyup', function (e) { keys[e.code] = 0; });
+    window.addEventListener('blur', function () { for (var k in keys) keys[k] = 0; });
+
+    /* 화면 버튼 (태블릿) */
+    var pad = document.getElementById('touch');
+    if (pad) {
+      pad.querySelectorAll('[data-k]').forEach(function (btn) {
+        var k = btn.getAttribute('data-k');
+        var on  = function (e) { e.preventDefault(); touch[k] = 1; btn.classList.add('on'); };
+        var off = function (e) { e.preventDefault(); touch[k] = 0; btn.classList.remove('on'); };
+        btn.addEventListener('pointerdown', on);
+        btn.addEventListener('pointerup', off);
+        btn.addEventListener('pointercancel', off);
+        btn.addEventListener('pointerleave', off);
+      });
+    }
+
+    /* 창문 부분을 끌어서 조종하기 */
+    canvas.addEventListener('pointerdown', function (e) {
+      if (e.clientY > window.innerHeight - Cockpit.panelHeight(window.innerWidth, window.innerHeight)) return;
+      canvas.setPointerCapture(e.pointerId);
+      drag = { x: e.clientX, y: e.clientY };
+    });
+    canvas.addEventListener('pointermove', function (e) {
+      if (drag) { drag.x = e.clientX; drag.y = e.clientY; }
+    });
+    function endDrag() { drag = null; }
+    canvas.addEventListener('pointerup', endDrag);
+    canvas.addEventListener('pointercancel', endDrag);
+    canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
+  }
+
+  function poll() {
+    var p = 0, r = 0, t = 0;
+
+    if (keys['ArrowUp']    || touch.up)    p += 1;
+    if (keys['ArrowDown']  || touch.down)  p -= 1;
+    if (keys['ArrowLeft']  || touch.left)  r -= 1;
+    if (keys['ArrowRight'] || touch.right) r += 1;
+
+    if (keys['KeyW'] || keys['ShiftLeft'] || keys['ShiftRight'] || keys['Equal'] || touch.thrUp)   t += 1;
+    if (keys['KeyS'] || keys['ControlLeft'] || keys['Minus'] || touch.thrDown) t -= 1;
+
+    if (drag) {
+      var W = window.innerWidth, H = window.innerHeight;
+      r += Engine3D.clamp((drag.x - W / 2) / (W * 0.30), -1, 1);
+      p += Engine3D.clamp((H * 0.36 - drag.y) / (H * 0.26), -1, 1);
+    }
+
+    cmd.pitch    = Engine3D.clamp(p, -1, 1);
+    cmd.roll     = Engine3D.clamp(r, -1, 1);
+    cmd.throttle = Engine3D.clamp(t, -1, 1);
+    cmd.throttleAbs = null;
+    cmd.manual   = (Math.abs(cmd.pitch) > 0.02 || Math.abs(cmd.roll) > 0.02 ||
+                    Math.abs(cmd.throttle) > 0.02);
+
+    /* 카메라 신체 인식 — 손을 대고 있지 않은 축만 몸동작이 맡는다 */
+    if (typeof Vision !== 'undefined' && Vision.isActive()) {
+      var v = Vision.out;
+      if (Math.abs(cmd.roll)  < 0.02) cmd.roll  = v.roll;
+      if (Math.abs(cmd.pitch) < 0.02) cmd.pitch = v.pitch;
+      if (Math.abs(cmd.throttle) < 0.02 && v.throttle !== null) cmd.throttleAbs = v.throttle;
+    }
+    return cmd;
+  }
+
+  return { init: init, poll: poll, cmd: cmd };
+})();
+
+</script>
+<script>
+/* ===== js/main.js ===== */
+/* =========================================================================
+ *  main.js — 전체를 이어 붙이고 매 순간 화면을 새로 그립니다.
+ * ========================================================================= */
+'use strict';
+
+/* ------------------------------------------------------------------ 소리 */
+var Sound = (function () {
+  var ac = null, osc1, osc2, filt, gain;
+  var enabled = true;
+
+  function start() {
+    if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    ac = new AC();
+    gain = ac.createGain(); gain.gain.value = 0;
+    filt = ac.createBiquadFilter(); filt.type = 'lowpass'; filt.frequency.value = 400;
+    osc1 = ac.createOscillator(); osc1.type = 'sawtooth'; osc1.frequency.value = 60;
+    osc2 = ac.createOscillator(); osc2.type = 'square';   osc2.frequency.value = 90;
+    var g2 = ac.createGain(); g2.gain.value = 0.3;
+    osc1.connect(filt); osc2.connect(g2); g2.connect(filt);
+    filt.connect(gain); gain.connect(ac.destination);
+    osc1.start(); osc2.start();
+  }
+  function update(thr) {
+    if (!ac) return;
+    var t = ac.currentTime, f = 48 + thr * 66;
+    osc1.frequency.setTargetAtTime(f, t, 0.18);
+    osc2.frequency.setTargetAtTime(f * 1.51, t, 0.18);
+    filt.frequency.setTargetAtTime(280 + thr * 950, t, 0.25);
+    gain.gain.setTargetAtTime(enabled ? 0.022 + thr * 0.05 : 0, t, 0.25);
+  }
+  function chime() {
+    if (!ac || !enabled) return;
+    [0, 0.13, 0.26, 0.42].forEach(function (d, i) {
+      var o = ac.createOscillator(), g = ac.createGain();
+      o.type = 'triangle';
+      o.frequency.value = [523.25, 659.25, 783.99, 1046.5][i];
+      g.gain.setValueAtTime(0.0001, ac.currentTime + d);
+      g.gain.exponentialRampToValueAtTime(0.16, ac.currentTime + d + 0.03);
+      g.gain.exponentialRampToValueAtTime(0.0001, ac.currentTime + d + 0.5);
+      o.connect(g); g.connect(ac.destination);
+      o.start(ac.currentTime + d); o.stop(ac.currentTime + d + 0.55);
+    });
+  }
+  return {
+    start: start, update: update, chime: chime,
+    toggle: function () { enabled = !enabled; return enabled; },
+    isOn: function () { return enabled; }
+  };
+})();
+
+/* ------------------------------------------------------------------ 본체 */
+(function () {
+
+  var canvas = document.getElementById('scene');
+  var R      = new Engine3D.Renderer(canvas);
+  var plane  = new Aircraft();
+
+  var running   = false;
+  var autopilot = false;
+  var destIdx   = 1;                 /* 처음 목적지 = 도쿄 */
+  var visited   = Object.create(null);
+  var overCity  = null;
+  var lastT     = 0, hudTick = 0, shakeT = 0;
+
+  var el = {
+    destName:  document.getElementById('destName'),
+    destFlag:  document.getElementById('destFlag'),
+    destDist:  document.getElementById('destDist'),
+    stampCount:document.getElementById('stampCount'),
+    stampTotal:document.getElementById('stampTotal'),
+    banner:    document.getElementById('cityBanner'),
+    start:     document.getElementById('startScreen'),
+    passport:  document.getElementById('passport'),
+    stamps:    document.getElementById('stamps'),
+    help:      document.getElementById('help'),
+    btnAuto:   document.getElementById('btnAuto'),
+    btnSound:  document.getElementById('btnSound'),
+    btnCam:    document.getElementById('btnCam'),
+    camHelp:   document.getElementById('camHelp'),
+    camPanel:  document.getElementById('camPanel'),
+    camView:   document.getElementById('camView'),
+    camStart:  document.getElementById('camStart'),
+    camNote:   document.getElementById('camNote')
+  };
+
+  /* ---------------------------------------------------------- 화면 크기 */
+  function resize() {
+    var w = window.innerWidth, h = window.innerHeight;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    if (w * h * dpr * dpr > 4.2e6) dpr = Math.sqrt(4.2e6 / (w * h));   /* 성능 보호 */
+    R.resize(w, h, dpr);
+    /* 카메라 미리보기는 계기판 바로 위에 (방향 버튼·계기와 겹치지 않게) */
+    el.camPanel.style.bottom = (Cockpit.panelHeight(w, h) + 10) + 'px';
+  }
+  window.addEventListener('resize', resize);
+
+  /* ------------------------------------------------------------ 목적지 */
+  function dest() { return World.cities()[destIdx]; }
+
+  function setDest(i) {
+    var list = World.cities();
+    destIdx = ((i % list.length) + list.length) % list.length;
+    updateHUD(true);
+  }
+  function nextDest() {
+    var list = World.cities(), i;
+    for (i = 1; i <= list.length; i++) {
+      var k = (destIdx + i) % list.length;
+      if (!visited[list[k].id]) { setDest(k); return; }
+    }
+    setDest(destIdx + 1);
+  }
+
+  function distTo(c) {
+    var dx = World.wrapDelta(c.x, plane.pos[0]);
+    var dz = World.wrapDelta(c.z, plane.pos[2]);
+    return Math.hypot(dx, dz);
+  }
+  function bearingTo(c) {
+    var dx = World.wrapDelta(c.x, plane.pos[0]);
+    var dz = World.wrapDelta(c.z, plane.pos[2]);
+    return Math.atan2(dx, dz);
+  }
+
+  /* -------------------------------------------------------------- 도착 */
+  function checkArrival() {
+    var list = World.cities(), i, near = null;
+    for (i = 0; i < list.length; i++) {
+      if (distTo(list[i]) < 1700) { near = list[i]; break; }
+    }
+    overCity = near ? near.name : null;
+    if (near && !visited[near.id]) {
+      visited[near.id] = true;
+      Sound.chime();
+      showBanner(near);
+      updateStamps();
+      if (near.id === dest().id) setTimeout(nextDest, 2600);
+    }
+  }
+
+  function showBanner(c) {
+    el.banner.innerHTML =
+      '<div class="bn-flag">' + c.flag + '</div>' +
+      '<div class="bn-txt">' +
+        '<div class="bn-sub">도착했어요!</div>' +
+        '<div class="bn-name">' + c.name + ' <small>' + c.country + '</small></div>' +
+        '<div class="bn-fact">' + c.fact + '</div>' +
+      '</div>' +
+      '<div class="bn-stamp">여권 도장 +1</div>';
+    el.banner.classList.add('show');
+    clearTimeout(showBanner.t);
+    showBanner.t = setTimeout(function () { el.banner.classList.remove('show'); }, 6000);
+  }
+
+  function updateStamps() {
+    var list = World.cities(), n = 0, html = '';
+    for (var i = 0; i < list.length; i++) {
+      var c = list[i], got = !!visited[c.id];
+      if (got) n++;
+      html += '<div class="stamp' + (got ? ' got' : '') + '" data-i="' + i + '">' +
+                '<div class="st-flag">' + c.flag + '</div>' +
+                '<div class="st-name">' + c.name + '</div>' +
+                '<div class="st-lm">' + c.landmark + '</div>' +
+                (got ? '<div class="st-mark">✓ 다녀옴</div>'
+                     : '<div class="st-go">여기로 가기</div>') +
+              '</div>';
+    }
+    el.stamps.innerHTML = html;
+    el.stampCount.textContent = n;
+    if (el.stampTotal) el.stampTotal.textContent = list.length;
+    el.stamps.querySelectorAll('.stamp').forEach(function (d) {
+      d.addEventListener('click', function () {
+        setDest(parseInt(d.getAttribute('data-i'), 10));
+        el.passport.classList.remove('show');
+      });
+    });
+  }
+
+  /* ---------------------------------------------------------------- HUD */
+  function updateHUD(force) {
+    var c = dest();
+    el.destName.textContent = c.name;
+    el.destFlag.textContent = c.flag;
+    el.destDist.textContent = (distTo(c) / 1000).toFixed(1);
+    if (force) el.stampCount.textContent = Object.keys(visited).length;
+  }
+
+  /* -------------------------------------------------------------- 버튼 */
+  function toggleAuto() {
+    autopilot = !autopilot;
+    el.btnAuto.classList.toggle('on', autopilot);
+  }
+  function toggleSound() {
+    var on = Sound.toggle();
+    el.btnSound.classList.toggle('off', !on);
+    el.btnSound.innerHTML = on ? '🔊 소리' : '🔇 소리';
+  }
+
+  /* ---------------------------------------------------- 카메라(몸으로 조종) */
+  function onCamPhase(phase, m) {
+    var on = (phase !== 'off' && phase !== 'error');
+    el.camPanel.classList.toggle('show', on);
+    el.btnCam.classList.toggle('on', phase === 'on');
+    el.camStart.disabled = on;
+    el.camNote.textContent = m || '';
+    if (phase === 'on') {
+      el.camHelp.classList.remove('show');
+      if (autopilot) toggleAuto();            /* 몸으로 조종할 땐 자동조종 끄기 */
+    }
+  }
+
+  function openCam() {
+    if (Vision.isRunning()) { el.camPanel.classList.toggle('show'); return; }
+    el.camHelp.classList.add('show');
+  }
+
+  function bindCamera() {
+    el.btnCam.addEventListener('click', openCam);
+    el.camStart.addEventListener('click', function () {
+      el.camNote.textContent = '카메라 사용을 허락해 주세요…';
+      Vision.start(el.camView, onCamPhase);
+    });
+    document.getElementById('camBg').addEventListener('click', Vision.captureBackground);
+    document.getElementById('camPose').addEventListener('click', Vision.capturePose);
+    document.getElementById('camOff').addEventListener('click', Vision.stop);
+    document.getElementById('camSens').addEventListener('input', function () {
+      Vision.setSensitivity(parseInt(this.value, 10));
+    });
+  }
+
+  function bind() {
+    bindCamera();
+    document.getElementById('btnDest').addEventListener('click', function () { setDest(destIdx + 1); });
+    el.btnAuto.addEventListener('click', toggleAuto);
+    el.btnSound.addEventListener('click', toggleSound);
+    document.getElementById('btnPassport').addEventListener('click', function () {
+      updateStamps(); el.passport.classList.toggle('show');
+    });
+    document.getElementById('btnHelp').addEventListener('click', function () {
+      el.help.classList.toggle('show');
+    });
+    document.querySelectorAll('[data-close]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        document.getElementById(b.getAttribute('data-close')).classList.remove('show');
+      });
+    });
+    document.getElementById('btnGo').addEventListener('click', begin);
+  }
+
+  function begin() {
+    el.start.classList.add('gone');
+    Sound.start();
+    if (!running) { running = true; lastT = performance.now(); requestAnimationFrame(loop); }
+  }
+
+  /* --------------------------------------------------------------- 루프 */
+  function loop(t) {
+    var dt = Math.min(0.05, (t - lastT) / 1000);
+    lastT = t;
+
+    Vision.update(t);
+
+    var cmd = Input.poll();
+    if (autopilot) {
+      /* 아이가 조종간을 만지면 자동조종은 즉시 꺼진다 */
+      if (cmd.manual) toggleAuto();
+      else plane.autopilot(dest(), cmd);
+    }
+    plane.update(dt, cmd);
+    Sound.update(plane.throttle);
+
+    render(t);
+
+    checkArrival();
+    if ((hudTick += dt) > 0.12) { hudTick = 0; updateHUD(); }
+
+    requestAnimationFrame(loop);
+  }
+
+  function render(t) {
+    var W = R.w, H = R.h;
+    var panelH = Cockpit.panelHeight(W, H);
+    R.horizonY = (H - panelH) * 0.53;
+
+    /* 속도에 따른 아주 작은 흔들림 */
+    shakeT += 0.016;
+    var amp = 0.0016 + plane.throttle * 0.0022;
+
+    R.begin({
+      pos:   plane.pos,
+      yaw:   plane.yaw,
+      pitch: plane.pitch + Math.sin(shakeT * 3.7) * amp,
+      roll:  plane.roll  + Math.sin(shakeT * 2.3) * amp * 1.4,
+      fov:   1.18
+    });
+    R.drawSky();
+    World.collect(R, plane.pos, t / 1000);
+    R.flush();
+
+    Cockpit.draw(R.ctx, W, H, {
+      speedKmh: plane.speed * 3.6,
+      altM:     plane.pos[1],
+      pitch:    plane.pitch,
+      roll:     plane.roll,
+      yaw:      plane.yaw,
+      throttle: plane.throttle,
+      bearing:  bearingTo(dest()),
+      destFlag: dest().flag,
+      autopilot: autopilot,
+      lowAlt:   plane.pos[1] < 200 && (t % 700 < 420),
+      sound:    Sound.isOn(),
+      camera:   Vision.isActive(),
+      overCity: overCity
+    });
+  }
+
+  /* --------------------------------------------------------------- 시작 */
+  World.init();
+  resize();
+  Input.init(canvas, function (action) {
+    if (!running) { begin(); return; }
+    if (action === 'autopilot') toggleAuto();
+    if (action === 'nextCity')  setDest(destIdx + 1);
+    if (action === 'sound')     toggleSound();
+    if (action === 'passport')  { updateStamps(); el.passport.classList.toggle('show'); }
+    if (action === 'camera')    openCam();
+  });
+  bind();
+  updateStamps();
+  updateHUD(true);
+
+  /* 개발/확인용 — 브라우저 콘솔에서 SIM.plane 으로 상태를 볼 수 있습니다 */
+  window.SIM = { plane: plane, setDest: setDest, renderer: R,
+                 state: function () { return { autopilot: autopilot, visited: visited,
+                                               dest: dest().name, overCity: overCity }; } };
+
+  /* 시작 화면 뒤에서도 배경이 보이도록 한 장면 그려둔다 */
+  render(0);
+})();
+
+</script>

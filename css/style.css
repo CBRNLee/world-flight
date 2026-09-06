@@ -1,0 +1,254 @@
+/* =========================================================================
+ *  style.css — 화면 위에 얹는 안내 UI
+ * ========================================================================= */
+
+:root {
+  --ink:  #10151b;
+  --card: rgba(18, 24, 32, 0.82);
+  --line: rgba(255, 255, 255, 0.14);
+  --hi:   #ffd23f;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: #0b1016;
+  font-family: "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR",
+               system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #fff;
+  user-select: none;
+}
+
+#scene { display: block; position: fixed; inset: 0; touch-action: none; cursor: grab; }
+#scene:active { cursor: grabbing; }
+
+/* ------------------------------------------------------------ 위쪽 막대 */
+#hud {
+  position: fixed; top: 0; left: 0; right: 0;
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 10px; padding: 10px 14px;
+  pointer-events: none; z-index: 20;
+}
+#hud > * { pointer-events: auto; }
+
+#destBox {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 16px; padding: 8px 16px 8px 12px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .35);
+}
+.dest-flag { font-size: 30px; line-height: 1; }
+.dest-info { display: flex; flex-direction: column; line-height: 1.15; }
+.dest-label { font-size: 11px; opacity: .6; letter-spacing: .04em; white-space: nowrap; }
+.dest-name  { font-size: 21px; font-weight: 800; white-space: nowrap; }
+.dest-dist  { font-size: 13px; opacity: .75; margin-left: 6px; }
+.dest-dist b { font-size: 22px; color: var(--hi); font-weight: 800; margin-right: 2px; }
+
+#tools { display: flex; flex-wrap: wrap; gap: 7px; justify-content: flex-end; }
+.hbtn {
+  font: inherit; font-size: 14px; font-weight: 700; color: #fff;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 13px; padding: 9px 13px; cursor: pointer;
+  backdrop-filter: blur(8px); transition: transform .08s, background .15s;
+}
+.hbtn:hover  { background: rgba(40, 52, 66, .9); }
+.hbtn:active { transform: scale(.95); }
+.hbtn.on  { background: #2f9e63; border-color: #4ade80; }
+.hbtn.off { opacity: .55; }
+.hbtn b { color: var(--hi); }
+
+/* -------------------------------------------------------------- 배너 */
+#cityBanner {
+  position: fixed; left: 50%; top: 86px; transform: translate(-50%, -24px);
+  display: flex; align-items: center; gap: 16px;
+  max-width: min(680px, 92vw); padding: 16px 22px;
+  background: linear-gradient(135deg, rgba(24, 34, 46, .95), rgba(14, 20, 28, .95));
+  border: 2px solid var(--hi); border-radius: 22px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, .5);
+  opacity: 0; pointer-events: none; z-index: 30;
+  transition: opacity .35s, transform .35s;
+}
+#cityBanner.show { opacity: 1; transform: translate(-50%, 0); }
+.bn-flag { font-size: 52px; line-height: 1; }
+.bn-sub  { font-size: 12px; letter-spacing: .12em; color: var(--hi); font-weight: 700; }
+.bn-name { font-size: 28px; font-weight: 800; }
+.bn-name small { font-size: 14px; opacity: .65; font-weight: 600; margin-left: 6px; }
+.bn-fact { font-size: 14px; opacity: .85; margin-top: 4px; line-height: 1.45; }
+.bn-stamp {
+  margin-left: auto; white-space: nowrap; align-self: flex-start;
+  background: var(--hi); color: #201800; font-weight: 800; font-size: 12px;
+  padding: 6px 10px; border-radius: 999px; transform: rotate(-6deg);
+}
+
+/* ------------------------------------------------------- 화면 조종 버튼 */
+#touch {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  display: none; justify-content: space-between; align-items: flex-end;
+  padding: 0 12px 12px; pointer-events: none; z-index: 25;
+}
+#touch > * { pointer-events: auto; }
+.tpad { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.trow { display: flex; gap: 46px; }
+#touch button {
+  width: 62px; height: 52px; font-size: 20px; font-weight: 800; color: #fff;
+  background: rgba(16, 22, 30, .72); border: 1px solid var(--line);
+  border-radius: 15px; cursor: pointer;
+}
+#touch button.on { background: #2f9e63; }
+.tthr { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.tthr span { font-size: 11px; opacity: .7; }
+
+/* 터치가 되는 기기에서만 보이게 */
+@media (pointer: coarse) { #touch { display: flex; } }
+
+/* ------------------------------------------------------- 카메라 미리보기 */
+#camPanel {
+  position: fixed; left: 12px; bottom: 12px; z-index: 26;   /* bottom 은 main.js 가 계기판 높이에 맞춰 조정 */
+  display: none; flex-direction: column; gap: 7px; width: 184px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 16px; padding: 9px; backdrop-filter: blur(8px);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .45);
+}
+#camPanel.show { display: flex; }
+#camView { width: 100%; border-radius: 10px; background: #10151b; display: block; }
+.cam-row { display: flex; gap: 5px; }
+.cam-row button {
+  flex: 1; font: inherit; font-size: 11.5px; font-weight: 700; color: #fff;
+  background: rgba(255, 255, 255, .08); border: 1px solid var(--line);
+  border-radius: 9px; padding: 6px 2px; cursor: pointer;
+}
+.cam-row button:hover { background: rgba(255, 255, 255, .16); }
+.cam-sens { display: flex; align-items: center; gap: 7px; font-size: 11px; opacity: .7;
+            white-space: nowrap; }
+.cam-sens input { flex: 1; accent-color: var(--hi); }
+
+.gesture { display: flex; flex-direction: column; gap: 9px; }
+.gesture > div {
+  display: flex; align-items: center; gap: 12px; font-size: 15px; line-height: 1.45;
+  background: rgba(255, 255, 255, .05); border-radius: 14px; padding: 12px 14px;
+}
+.gesture span { font-size: 30px; flex: none; }
+.gesture b { color: var(--hi); }
+.gesture i {
+  margin-left: auto; flex: none; font-style: normal; font-size: 11px; font-weight: 800;
+  background: rgba(255, 255, 255, .10); border-radius: 999px; padding: 4px 9px;
+}
+.privacy {
+  margin-top: 14px; font-size: 13px; line-height: 1.5;
+  background: rgba(96, 165, 250, .12); border: 1px solid rgba(96, 165, 250, .3);
+  border-radius: 12px; padding: 10px 13px; color: #cfe3ff;
+}
+.privacy b { color: #fff; }
+.cam-actions { display: flex; gap: 10px; margin-top: 14px; }
+.cam-actions .close { margin-top: 0; width: auto; flex: 0 0 150px; }
+#camStart {
+  flex: 1; font: inherit; font-size: 16px; font-weight: 800; color: #201800;
+  background: linear-gradient(180deg, #ffe27a, #ffc023);
+  border: 0; border-radius: 15px; padding: 13px; cursor: pointer;
+}
+#camStart:disabled { opacity: .5; cursor: default; }
+#camNote { min-height: 18px; }
+
+/* -------------------------------------------------------------- 모달 */
+.modal {
+  position: fixed; inset: 0; z-index: 40;
+  display: none; align-items: center; justify-content: center;
+  background: rgba(4, 8, 12, .68); backdrop-filter: blur(4px); padding: 20px;
+}
+.modal.show { display: flex; }
+.sheet {
+  width: min(760px, 96vw); max-height: 88vh; overflow: auto;
+  background: #161d26; border: 1px solid var(--line);
+  border-radius: 24px; padding: 24px 26px 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, .6);
+}
+.sheet h2 { font-size: 24px; margin-bottom: 6px; }
+.sheet .sub { font-size: 14px; opacity: .7; margin-bottom: 16px; line-height: 1.5; }
+.close {
+  margin-top: 18px; width: 100%; font: inherit; font-size: 16px; font-weight: 800;
+  padding: 13px; border-radius: 15px; border: 0; cursor: pointer;
+  background: #2b3644; color: #fff;
+}
+.close:hover { background: #364355; }
+
+#stamps { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.stamp {
+  border: 2px dashed rgba(255, 255, 255, .18); border-radius: 16px;
+  padding: 12px 10px; text-align: center; cursor: pointer;
+  transition: transform .1s, border-color .15s, background .15s;
+}
+.stamp:hover { transform: translateY(-2px); border-color: var(--hi); }
+.stamp.got { border-style: solid; border-color: #4ade80; background: rgba(74, 222, 128, .10); }
+.st-flag { font-size: 34px; line-height: 1.1; }
+.st-name { font-size: 17px; font-weight: 800; }
+.st-lm   { font-size: 11px; opacity: .6; margin-top: 2px; }
+.st-mark { font-size: 12px; font-weight: 800; color: #4ade80; margin-top: 6px; }
+.st-go   { font-size: 12px; opacity: .55; margin-top: 6px; }
+
+.keys { display: flex; flex-direction: column; gap: 11px; }
+.keys > div { display: flex; align-items: center; gap: 8px; font-size: 15px; }
+.keys span { opacity: .85; }
+.keys .wide { opacity: .6; font-size: 13px; padding-top: 4px; }
+kbd {
+  display: inline-block; min-width: 34px; text-align: center;
+  background: #26313e; border: 1px solid #3d4a5a; border-bottom-width: 3px;
+  border-radius: 8px; padding: 5px 9px; font-size: 13px; font-weight: 700;
+  font-family: inherit;
+}
+
+/* ---------------------------------------------------------- 시작 화면 */
+#startScreen {
+  position: fixed; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  background: radial-gradient(120% 90% at 50% 20%, rgba(24, 46, 74, .72), rgba(4, 8, 14, .92));
+  backdrop-filter: blur(3px);
+  transition: opacity .5s;
+}
+#startScreen.gone { opacity: 0; pointer-events: none; }
+.start-card {
+  width: min(540px, 94vw); text-align: center;
+  background: rgba(18, 25, 34, .92); border: 1px solid var(--line);
+  border-radius: 30px; padding: 30px 28px 26px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, .6);
+}
+.plane { font-size: 62px; animation: fly 3.4s ease-in-out infinite; }
+@keyframes fly {
+  0%, 100% { transform: translate(-8px, 4px) rotate(-4deg); }
+  50%      { transform: translate(8px, -6px) rotate(4deg); }
+}
+.start-card h1 { font-size: 32px; margin: 4px 0 8px; letter-spacing: -.01em; }
+.lead { font-size: 15px; opacity: .8; line-height: 1.6; }
+.steps { display: flex; flex-direction: column; gap: 8px; margin: 20px 0 22px; text-align: left; }
+.steps div {
+  display: flex; align-items: center; gap: 10px; font-size: 14.5px;
+  background: rgba(255, 255, 255, .05); border-radius: 14px; padding: 11px 14px;
+}
+.steps b {
+  flex: none; width: 24px; height: 24px; border-radius: 50%;
+  background: var(--hi); color: #201800; font-size: 13px;
+  display: grid; place-items: center;
+}
+#btnGo {
+  width: 100%; font: inherit; font-size: 20px; font-weight: 800; color: #201800;
+  background: linear-gradient(180deg, #ffe27a, #ffc023);
+  border: 0; border-radius: 18px; padding: 16px; cursor: pointer;
+  box-shadow: 0 8px 0 #c98f00, 0 14px 26px rgba(0, 0, 0, .4);
+  transition: transform .08s, box-shadow .08s;
+}
+#btnGo:active { transform: translateY(5px); box-shadow: 0 3px 0 #c98f00; }
+.tip { font-size: 13px; opacity: .6; margin-top: 14px; }
+.tip b { color: var(--hi); }
+
+/* ------------------------------------------------------- 좁은 화면 대응 */
+@media (max-width: 720px) {
+  .dest-name { font-size: 17px; }
+  .dest-dist b { font-size: 18px; }
+  .hbtn { font-size: 12px; padding: 7px 10px; border-radius: 11px; }
+  #cityBanner { top: 78px; gap: 12px; padding: 12px 16px; }
+  .bn-flag { font-size: 38px; }
+  .bn-name { font-size: 21px; }
+  .bn-stamp { display: none; }
+}

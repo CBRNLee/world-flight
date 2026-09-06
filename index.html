@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>세계 여행 비행기</title>
+<link rel="stylesheet" href="css/style.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>%E2%9C%88%EF%B8%8F</text></svg>" />
+</head>
+<body>
+
+<canvas id="scene"></canvas>
+
+<!-- ===================== 위쪽 안내 막대 ===================== -->
+<div id="hud">
+  <div id="destBox">
+    <span class="dest-flag" id="destFlag">🗼</span>
+    <span class="dest-info">
+      <span class="dest-label">다음 목적지</span>
+      <span class="dest-name" id="destName">도쿄</span>
+    </span>
+    <span class="dest-dist"><b id="destDist">0.0</b>km</span>
+  </div>
+
+  <div id="tools">
+    <button class="hbtn" id="btnDest">🎯 도시 바꾸기</button>
+    <button class="hbtn" id="btnAuto">🤖 자동조종</button>
+    <button class="hbtn" id="btnCam">🎥 몸으로 조종</button>
+    <button class="hbtn" id="btnSound">🔊 소리</button>
+    <button class="hbtn" id="btnPassport">📗 여권 <b id="stampCount">0</b>/<b id="stampTotal">24</b></button>
+    <button class="hbtn" id="btnHelp">❓</button>
+  </div>
+</div>
+
+<!-- ===================== 카메라 미리보기 ===================== -->
+<div id="camPanel">
+  <canvas id="camView" width="208" height="156"></canvas>
+  <div class="cam-row">
+    <button id="camBg" title="배경을 다시 기억해요">🖼 배경</button>
+    <button id="camPose" title="팔 벌린 기준 자세를 다시 잡아요">🧍 기준</button>
+    <button id="camOff">끄기</button>
+  </div>
+  <label class="cam-sens">
+    민감도
+    <input type="range" id="camSens" min="20" max="90" step="2" value="46" />
+  </label>
+</div>
+
+<!-- ===================== 도착 배너 ===================== -->
+<div id="cityBanner"></div>
+
+<!-- ===================== 화면 조종 버튼 (태블릿) ===================== -->
+<div id="touch">
+  <div class="tpad">
+    <button data-k="up">▲</button>
+    <div class="trow">
+      <button data-k="left">◀</button>
+      <button data-k="right">▶</button>
+    </div>
+    <button data-k="down">▼</button>
+  </div>
+  <div class="tthr">
+    <button data-k="thrUp">＋</button>
+    <span>출력</span>
+    <button data-k="thrDown">－</button>
+  </div>
+</div>
+
+<!-- ===================== 여권 ===================== -->
+<div class="modal" id="passport">
+  <div class="sheet">
+    <h2>📗 나의 여권</h2>
+    <p class="sub">도시 위를 지나가면 도장이 찍혀요. 카드를 누르면 그 도시로 목적지가 바뀝니다.</p>
+    <div id="stamps"></div>
+    <button class="close" data-close="passport">닫기</button>
+  </div>
+</div>
+
+<!-- ===================== 도움말 ===================== -->
+<div class="modal" id="help">
+  <div class="sheet">
+    <h2>❓ 조종 방법</h2>
+    <div class="keys">
+      <div><kbd>↑</kbd><kbd>↓</kbd><span>위로 올라가기 / 아래로 내려가기</span></div>
+      <div><kbd>←</kbd><kbd>→</kbd><span>왼쪽 · 오른쪽으로 돌기</span></div>
+      <div><kbd>W</kbd><kbd>S</kbd><span>더 빠르게 / 더 느리게</span></div>
+      <div><kbd>Space</kbd><span>자동 조종 켜기·끄기</span></div>
+      <div><kbd>N</kbd><span>다음 도시 고르기</span></div>
+      <div><kbd>P</kbd><span>여권 열기</span></div>
+      <div><kbd>M</kbd><span>소리 켜기·끄기</span></div>
+      <div><kbd>C</kbd><span>몸으로 조종하기(카메라)</span></div>
+      <div><span class="wide">창문을 마우스로 꾹 누른 채 움직여도 조종할 수 있어요.</span></div>
+    </div>
+    <button class="close" data-close="help">닫기</button>
+  </div>
+</div>
+
+<!-- ===================== 카메라(몸으로 조종) 안내 ===================== -->
+<div class="modal" id="camHelp">
+  <div class="sheet">
+    <h2>🎥 몸으로 비행기 조종하기</h2>
+    <p class="sub">카메라가 몸의 모습을 보고 조종해요. 카메라를 고정해 두고, 온몸이 보이도록 두세 걸음 뒤로 서 주세요.</p>
+
+    <div class="gesture">
+      <div><span>🙆</span><b>팔을 기울이면</b> 그쪽으로 돌아요 <i>좌우</i></div>
+      <div><span>🧍</span><b>팔을 나란히</b> 하면 수평 비행 <i>수평</i></div>
+      <div><span>🙌</span><b>팔을 위로 / 아래로</b> 올라가고 내려가요 <i>고도</i></div>
+      <div><span>🦸</span><b>가까이 오거나 키를 크게</b> 하면 빨라져요<br /><b>무릎을 굽히면</b> 느려져요 <i>속도</i></div>
+    </div>
+
+    <p class="sub" style="margin-top:14px">
+      켜면 ① 배경을 기억하려고 <b>3초 동안 카메라 앞에서 비켜</b> 달라고 하고,
+      ② 그다음 <b>팔을 옆으로 쭉 편 자세</b>를 3초 동안 기준으로 기억합니다.<br />
+      잘 안 되면 왼쪽 아래 미리보기의 <b>🖼 배경</b> · <b>🧍 기준</b> 버튼으로 다시 잡으세요.
+    </p>
+
+    <p class="privacy">🔒 카메라 영상은 <b>이 컴퓨터 안에서만</b> 처리됩니다.
+      어디에도 저장되거나 인터넷으로 전송되지 않아요.</p>
+
+    <div class="cam-actions">
+      <button id="camStart">📷 카메라 켜기</button>
+      <button class="close" data-close="camHelp">닫기</button>
+    </div>
+    <p class="tip" id="camNote"></p>
+  </div>
+</div>
+
+<!-- ===================== 시작 화면 ===================== -->
+<div id="startScreen">
+  <div class="start-card">
+    <div class="plane">✈️</div>
+    <h1>세계 여행 비행기</h1>
+    <p class="lead">조종석에 앉아 하늘을 날며<br />세계 여러 도시를 찾아가는 놀이예요.</p>
+
+    <div class="steps">
+      <div><b>1</b> 방향키로 비행기를 움직여요</div>
+      <div><b>2</b> 나침반의 분홍 화살표를 따라가요</div>
+      <div><b>3</b> 도시에 도착하면 여권에 도장을 받아요</div>
+    </div>
+
+    <button id="btnGo">비행기 출발! 🛫</button>
+    <p class="tip">어려우면 <b>🤖 자동조종</b> 버튼을 눌러 보세요.</p>
+  </div>
+</div>
+
+<script src="js/engine3d.js"></script>
+<script src="js/vision.js"></script>
+<script src="js/world.js"></script>
+<script src="js/aircraft.js"></script>
+<script src="js/cockpit.js"></script>
+<script src="js/input.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
