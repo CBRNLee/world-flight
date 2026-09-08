@@ -799,6 +799,32 @@ var World = (function () {
     return g;
   });
 
+  /* 함께 나는 친구의 비행기 — 색만 바꾼 여객기를 미리 만들어 둡니다 */
+  function playerJet(c) {
+    var g = G();
+    box(g,   0,  0,   0, 16, 15,  96, [244, 246, 250], 0, true);   /* 동체 */
+    box(g,   0,  3,  -4, 108,  5, 27, [232, 236, 242], 0, true);   /* 날개 */
+    box(g,   0, 10, -38,   6, 27, 20, c, 0, true);                 /* 꼬리 날개 */
+    box(g,   0, 10, -38,  44,  4, 13, [232, 236, 242], 0, true);
+    box(g, -29, -7,   0,  12, 11, 25, [186, 192, 202], 0, true);   /* 엔진 */
+    box(g,  29, -7,   0,  12, 11, 25, [186, 192, 202], 0, true);
+    box(g,   0,  6,  11,  17,  5, 68, c, 0, true);                 /* 색 줄무늬 */
+    return g;
+  }
+  var PLAYER_JETS = null;
+
+  /* 친구 한 명을 그린다 (p: {rx, ry, rz, ryaw, ci}) */
+  function drawPlayer(R, camPos, p) {
+    if (!PLAYER_JETS) {
+      PLAYER_JETS = [];
+      for (var i = 0; i < 8; i++) PLAYER_JETS.push(playerJet(Net.color(i)));
+    }
+    var dx = wrapDelta(p.rx, camPos[0]), dz = wrapDelta(p.rz, camPos[2]);
+    if (Math.hypot(dx, dz) > 14000) return null;
+    drawGeom(R, PLAYER_JETS[p.ci % 8], camPos[0] + dx, p.ry, camPos[2] + dz, 0, p.ryaw);
+    return [camPos[0] + dx, p.ry, camPos[2] + dz];
+  }
+
   function makeTraffic() {
     var r = rngFrom(7777), i, t = { ships: [], jets: [], balloons: [] };
     for (i = 0; i < 225; i++)
@@ -942,6 +968,7 @@ var World = (function () {
     SIZE: SIZE,
     init: init,
     collect: collect,
+    drawPlayer: drawPlayer,
     wrapDelta: wrapDelta,
     cities: function () { return cities; }
   };

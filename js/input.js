@@ -25,6 +25,7 @@ var Input = (function () {
       if (e.code === 'KeyM')   { onAction('sound'); }
       if (e.code === 'KeyP')   { onAction('passport'); }
       if (e.code === 'KeyC')   { onAction('camera'); }
+      if (e.code === 'KeyF')   { onAction('friends'); }
       if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].indexOf(e.code) >= 0) e.preventDefault();
     });
     window.addEventListener('keyup', function (e) { keys[e.code] = 0; });

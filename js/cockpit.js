@@ -12,7 +12,9 @@ var Cockpit = (function () {
 
   /* 계기판 높이 (화면 크기에 맞춰 자동으로) */
   function panelHeight(W, H) {
-    return Math.round(Math.max(170, Math.min(H * 0.36, 360)));
+    H = Math.max(1, H);
+    /* 화면이 아주 낮아도 계기판이 창문을 다 잡아먹지 않게 (창 높이가 음수가 되면 안 됨) */
+    return Math.round(Math.min(Math.max(150, H * 0.36), 360, H * 0.6));
   }
 
   /* ---------------------------------------------------------------- 창틀 */
@@ -351,6 +353,7 @@ var Cockpit = (function () {
       ['저고도',   s.lowAlt,    '#fbbf24'],
       ['소리',     s.sound,     '#60a5fa']
     ];
+    if (s.friends >= 0) items.splice(1, 0, ['친구 ' + s.friends, true, '#34d399']);
     ctx.save();
     ctx.font = '700 12px "Apple SD Gothic Neo", sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -425,7 +428,8 @@ var Cockpit = (function () {
 
   /* 둥근 사각형 경로 */
   function roundRectPath(ctx, x, y, w, h, r) {
-    r = Math.min(r, w / 2, h / 2);
+    if (!(w > 0) || !(h > 0)) return;          /* 크기가 0 이하면 그릴 것이 없다 */
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
     ctx.moveTo(x + r, y);
     ctx.arcTo(x + w, y,     x + w, y + h, r);
     ctx.arcTo(x + w, y + h, x,     y + h, r);

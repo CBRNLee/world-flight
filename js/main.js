@@ -62,7 +62,7 @@ var Sound = (function () {
   var destIdx   = 1;                 /* 처음 목적지 = 도쿄 */
   var visited   = Object.create(null);
   var overCity  = null;
-  var lastT     = 0, hudTick = 0, shakeT = 0;
+  var lastT     = 0, hudTick = 0, shakeT = 0, netTick = 0;
 
   var el = {
     destName:  document.getElementById('destName'),
@@ -82,17 +82,27 @@ var Sound = (function () {
     camPanel:  document.getElementById('camPanel'),
     camView:   document.getElementById('camView'),
     camStart:  document.getElementById('camStart'),
-    camNote:   document.getElementById('camNote')
+    camNote:   document.getElementById('camNote'),
+    btnNet:    document.getElementById('btnNet'),
+    netHelp:   document.getElementById('netHelp'),
+    netPanel:  document.getElementById('netPanel'),
+    netList:   document.getElementById('netList'),
+    netCodeTag:document.getElementById('netCodeTag'),
+    netName:   document.getElementById('netName'),
+    netCode:   document.getElementById('netCode'),
+    netNote:   document.getElementById('netNote')
   };
 
   /* ---------------------------------------------------------- 화면 크기 */
   function resize() {
-    var w = window.innerWidth, h = window.innerHeight;
+    var w = Math.max(1, window.innerWidth), h = Math.max(1, window.innerHeight);
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
     if (w * h * dpr * dpr > 4.2e6) dpr = Math.sqrt(4.2e6 / (w * h));   /* 성능 보호 */
     R.resize(w, h, dpr);
     /* 카메라 미리보기는 계기판 바로 위에 (방향 버튼·계기와 겹치지 않게) */
-    el.camPanel.style.bottom = (Cockpit.panelHeight(w, h) + 10) + 'px';
+    var pb = (Cockpit.panelHeight(w, h) + 10) + 'px';
+    el.camPanel.style.bottom = pb;
+    el.netPanel.style.bottom = pb;
   }
   window.addEventListener('resize', resize);
 
@@ -230,8 +240,72 @@ var Sound = (function () {
     });
   }
 
+  /* ------------------------------------------------------- 함께 하기 */
+  function onNetChange(phase, m) {
+    var on = (phase !== 'off');
+    el.netPanel.classList.toggle('show', on);
+    el.btnNet.classList.toggle('on', phase === 'on');
+    el.netNote.textContent = m || '';
+    el.netCodeTag.textContent = Net.code() || '----';
+    if (phase === 'on') el.netHelp.classList.remove('show');
+    renderNetList();
+  }
+
+  function renderNetList() {
+    var friends = Net.peers();
+    if (!friends.length) {
+      el.netList.innerHTML = '<div class="none">' +
+        (Net.phase() === 'on' ? '아직 친구가 없어요.<br />같은 코드를 넣으면 만나요!' : '연결하는 중…') +
+        '</div>';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < friends.length; i++) {
+      var f = friends[i], c = Net.color(f.ci);
+      var dx = World.wrapDelta(f.rx, plane.pos[0]);
+      var dz = World.wrapDelta(f.rz, plane.pos[2]);
+      html += '<div class="who">' +
+        '<span class="dot" style="background:rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')"></span>' +
+        '<span class="nm">' + esc(f.name || '친구') + '</span>' +
+        '<span class="km">' + (Math.hypot(dx, dz) / 1000).toFixed(1) + 'km</span></div>';
+    }
+    el.netList.innerHTML = html;
+  }
+
+  function esc(t) {
+    return String(t).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function openNet() {
+    if (Net.phase() !== 'off') { el.netPanel.classList.toggle('show'); return; }
+    if (!el.netCode.value) el.netCode.value = Net.newCode();
+    el.netHelp.classList.add('show');
+  }
+
+  function bindNet() {
+    Net.plane = plane;
+    el.btnNet.addEventListener('click', openNet);
+    document.getElementById('netNew').addEventListener('click', function () {
+      el.netCode.value = Net.newCode();
+    });
+    document.getElementById('netJoin').addEventListener('click', function () {
+      var codeVal = (el.netCode.value || '').trim();
+      if (codeVal.length < 3) { el.netNote.textContent = '코드를 네 자리 넣어 주세요.'; return; }
+      Net.join(codeVal, el.netName.value || '조종사', onNetChange);
+    });
+    document.getElementById('netLeave').addEventListener('click', function () {
+      Net.leave(); onNetChange('off', '');
+    });
+    el.netCode.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') document.getElementById('netJoin').click();
+    });
+  }
+
   function bind() {
     bindCamera();
+    bindNet();
     document.getElementById('btnDest').addEventListener('click', function () { setDest(destIdx + 1); });
     el.btnAuto.addEventListener('click', toggleAuto);
     el.btnSound.addEventListener('click', toggleSound);
@@ -256,11 +330,25 @@ var Sound = (function () {
   }
 
   /* --------------------------------------------------------------- 루프 */
+  var frameErrors = 0;
+
   function loop(t) {
+    /* 한 프레임이 잘못돼도 놀이가 통째로 멈추면 안 됩니다.
+       (아이들 앞에서 화면이 까맣게 굳는 것이 가장 나쁜 고장이라서) */
+    try { frame(t); }
+    catch (e) {
+      if (++frameErrors <= 3 && window.console) console.error('한 프레임을 건너뜁니다:', e);
+    }
+    requestAnimationFrame(loop);
+  }
+
+  function frame(t) {
     var dt = Math.min(0.05, (t - lastT) / 1000);
     lastT = t;
 
     Vision.update(t);
+    Net.update(dt);
+    if ((netTick += dt) > 0.4) { netTick = 0; if (Net.phase() !== 'off') renderNetList(); }
 
     var cmd = Input.poll();
     if (autopilot) {
@@ -275,8 +363,6 @@ var Sound = (function () {
 
     checkArrival();
     if ((hudTick += dt) > 0.12) { hudTick = 0; updateHUD(); }
-
-    requestAnimationFrame(loop);
   }
 
   function render(t) {
@@ -297,7 +383,15 @@ var Sound = (function () {
     });
     R.drawSky();
     World.collect(R, plane.pos, t / 1000);
+
+    var friends = Net.phase() !== 'off' ? Net.peers() : [];
+    var tags = [], i, at;
+    for (i = 0; i < friends.length; i++) {
+      at = World.drawPlayer(R, plane.pos, friends[i]);
+      if (at) tags.push({ at: at, f: friends[i] });
+    }
     R.flush();
+    drawNameTags(R, tags);
 
     Cockpit.draw(R.ctx, W, H, {
       speedKmh: plane.speed * 3.6,
@@ -312,8 +406,49 @@ var Sound = (function () {
       lowAlt:   plane.pos[1] < 200 && (t % 700 < 420),
       sound:    Sound.isOn(),
       camera:   Vision.isActive(),
+      friends:  Net.isOn() ? Net.count() : -1,
       overCity: overCity
     });
+  }
+
+  /* 친구 비행기 위에 이름표를 붙인다 (계기판보다 아래 순서로 그려서 가려지게) */
+  function drawNameTags(R, tags) {
+    if (!tags.length) return;
+    var ctx = R.ctx, i;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (i = 0; i < tags.length; i++) {
+      var t = tags[i], p = R.project(t.at[0], t.at[1] + 90, t.at[2]);
+      if (!p) continue;
+      if (p.x < -80 || p.x > R.w + 80 || p.y < -40 || p.y > R.h) continue;
+      var fs = Math.max(10, Math.min(15, 2200 / p.d));
+      ctx.font = '800 ' + fs.toFixed(0) + 'px "Apple SD Gothic Neo", sans-serif';
+      var label = (t.f.name || '친구') + '  ' + (p.d / 1000).toFixed(1) + 'km';
+      var w = ctx.measureText(label).width + 16, h = fs + 10;
+      var c = Net.color(t.f.ci);
+      ctx.globalAlpha = p.d > 9000 ? 0.35 : 1;
+      ctx.beginPath();
+      roundRect(ctx, p.x - w / 2, p.y - h / 2, w, h, h / 2);
+      ctx.fillStyle = 'rgba(10,16,22,0.72)'; ctx.fill();
+      ctx.strokeStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+      ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.fillText(label, p.x, p.y + 1);
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    if (!(w > 0) || !(h > 0)) return;
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
   }
 
   /* --------------------------------------------------------------- 시작 */
@@ -326,6 +461,7 @@ var Sound = (function () {
     if (action === 'sound')     toggleSound();
     if (action === 'passport')  { updateStamps(); el.passport.classList.toggle('show'); }
     if (action === 'camera')    openCam();
+    if (action === 'friends')   openNet();
   });
   bind();
   updateStamps();
@@ -337,5 +473,5 @@ var Sound = (function () {
                                                dest: dest().name, overCity: overCity }; } };
 
   /* 시작 화면 뒤에서도 배경이 보이도록 한 장면 그려둔다 */
-  render(0);
+  try { render(0); } catch (e) { /* 창이 아직 자리를 못 잡았으면 다음 프레임에 */ }
 })();

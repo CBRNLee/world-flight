@@ -26,6 +26,7 @@
     <button class="hbtn" id="btnDest">🎯 도시 바꾸기</button>
     <button class="hbtn" id="btnAuto">🤖 자동조종</button>
     <button class="hbtn" id="btnCam">🎥 몸으로 조종</button>
+    <button class="hbtn" id="btnNet">🌐 함께 하기</button>
     <button class="hbtn" id="btnSound">🔊 소리</button>
     <button class="hbtn" id="btnPassport">📗 여권 <b id="stampCount">0</b>/<b id="stampTotal">24</b></button>
     <button class="hbtn" id="btnHelp">❓</button>
@@ -44,6 +45,13 @@
     민감도
     <input type="range" id="camSens" min="20" max="90" step="2" value="46" />
   </label>
+</div>
+
+<!-- ===================== 함께 하는 친구 목록 ===================== -->
+<div id="netPanel">
+  <div class="net-head"><b>🌐 함께 하기</b><span id="netCodeTag">----</span></div>
+  <div id="netList"></div>
+  <button id="netLeave">나가기</button>
 </div>
 
 <!-- ===================== 도착 배너 ===================== -->
@@ -89,6 +97,7 @@
       <div><kbd>P</kbd><span>여권 열기</span></div>
       <div><kbd>M</kbd><span>소리 켜기·끄기</span></div>
       <div><kbd>C</kbd><span>몸으로 조종하기(카메라)</span></div>
+      <div><kbd>F</kbd><span>친구와 함께 날기</span></div>
       <div><span class="wide">창문을 마우스로 꾹 누른 채 움직여도 조종할 수 있어요.</span></div>
     </div>
     <button class="close" data-close="help">닫기</button>
@@ -125,6 +134,43 @@
   </div>
 </div>
 
+<!-- ===================== 함께 하기 안내 ===================== -->
+<div class="modal" id="netHelp">
+  <div class="sheet">
+    <h2>🌐 친구와 함께 날기</h2>
+    <p class="sub">같은 <b>네 자리 코드</b>를 넣으면 같은 하늘에서 만납니다.
+      친구의 비행기가 창밖에 보이고, 이름표도 함께 떠요.</p>
+
+    <div class="net-form">
+      <label>내 별명
+        <input type="text" id="netName" maxlength="10" placeholder="예: 하늘이" value="조종사" />
+      </label>
+      <label>방 코드
+        <span class="code-row">
+          <input type="text" id="netCode" maxlength="4" inputmode="numeric" placeholder="1234" />
+          <button type="button" id="netNew">새 코드</button>
+        </span>
+      </label>
+    </div>
+
+    <div class="steps net-steps">
+      <div><b>1</b> 한 사람이 <b>새 코드</b>를 눌러 코드를 만들어요</div>
+      <div><b>2</b> 그 코드를 친구에게 알려 줘요</div>
+      <div><b>3</b> 둘 다 같은 코드를 넣고 <b>함께 날기</b>를 누르면 끝!</div>
+    </div>
+
+    <p class="privacy">🔒 주고받는 것은 <b>별명과 비행기 위치</b>뿐입니다.
+      공개 중계소를 쓰기 때문에 <b>코드를 아는 사람은 누구나 들어올 수 있어요.</b>
+      실제 이름 대신 별명을 써 주세요.</p>
+
+    <div class="cam-actions">
+      <button id="netJoin">✈️ 함께 날기</button>
+      <button class="close" data-close="netHelp">닫기</button>
+    </div>
+    <p class="tip" id="netNote"></p>
+  </div>
+</div>
+
 <!-- ===================== 시작 화면 ===================== -->
 <div id="startScreen">
   <div class="start-card">
@@ -144,6 +190,8 @@
 </div>
 
 <script src="js/engine3d.js"></script>
+<script src="js/mqtt-lite.js"></script>
+<script src="js/net.js"></script>
 <script src="js/vision.js"></script>
 <script src="js/world.js"></script>
 <script src="js/aircraft.js"></script>

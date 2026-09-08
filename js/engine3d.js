@@ -123,6 +123,14 @@ var Engine3D = (function () {
     };
   };
 
+  /* 월드의 한 점이 화면 어디에 찍히는지 (친구 이름표를 붙일 때 씁니다) */
+  Renderer.prototype.project = function (x, y, z) {
+    var c = this.toCam(x, y, z);
+    if (c.z < 2) return null;
+    var k = this.focal / c.z;
+    return { x: this.cx + c.x * k, y: this.cy - c.y * k, d: c.z };
+  };
+
   /* 색 = 기본색 × 밝기, 그리고 거리만큼 안개색으로 흐려지게 */
   Renderer.prototype._color = function (rgb, shade, dist) {
     var f = (dist - this.fogStart) / (this.fogEnd - this.fogStart);

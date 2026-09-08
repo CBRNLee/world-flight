@@ -128,6 +128,60 @@ html, body {
             white-space: nowrap; }
 .cam-sens input { flex: 1; accent-color: var(--hi); }
 
+/* ------------------------------------------------------- 함께 하기 패널 */
+#netPanel {
+  position: fixed; right: 12px; bottom: 12px; z-index: 26;   /* bottom 은 main.js 가 조정 */
+  display: none; flex-direction: column; gap: 7px; width: 190px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 16px; padding: 10px; backdrop-filter: blur(8px);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .45);
+}
+#netPanel.show { display: flex; }
+.net-head { display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; }
+.net-head span {
+  font-family: ui-monospace, Menlo, monospace; font-size: 16px; font-weight: 800;
+  color: var(--hi); letter-spacing: .12em;
+}
+#netList { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+#netList .who { display: flex; align-items: center; gap: 6px; }
+#netList .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+#netList .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#netList .km { opacity: .6; font-variant-numeric: tabular-nums; }
+#netList .none { opacity: .55; line-height: 1.4; }
+#netLeave {
+  font: inherit; font-size: 12px; font-weight: 700; color: #fff;
+  background: rgba(255, 255, 255, .08); border: 1px solid var(--line);
+  border-radius: 9px; padding: 6px; cursor: pointer;
+}
+#netLeave:hover { background: rgba(255, 255, 255, .16); }
+
+.net-form { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.net-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; opacity: .8; }
+.net-form input {
+  font: inherit; font-size: 17px; font-weight: 700; color: #fff;
+  background: rgba(255, 255, 255, .07); border: 1px solid var(--line);
+  border-radius: 12px; padding: 11px 14px; width: 100%;
+}
+.net-form input:focus { outline: 2px solid var(--hi); outline-offset: 1px; }
+.code-row { display: flex; gap: 8px; }
+#netCode {
+  font-family: ui-monospace, Menlo, monospace; font-size: 26px;
+  letter-spacing: .28em; text-align: center;
+}
+#netNew {
+  flex: none; font: inherit; font-size: 13px; font-weight: 700; color: #fff;
+  background: rgba(255, 255, 255, .09); border: 1px solid var(--line);
+  border-radius: 12px; padding: 0 16px; cursor: pointer; white-space: nowrap;
+}
+#netNew:hover { background: rgba(255, 255, 255, .18); }
+.net-steps { margin: 0 0 4px; }
+#netJoin {
+  flex: 1; font: inherit; font-size: 16px; font-weight: 800; color: #201800;
+  background: linear-gradient(180deg, #ffe27a, #ffc023);
+  border: 0; border-radius: 15px; padding: 13px; cursor: pointer;
+}
+#netNote { min-height: 18px; }
+
 .gesture { display: flex; flex-direction: column; gap: 9px; }
 .gesture > div {
   display: flex; align-items: center; gap: 12px; font-size: 15px; line-height: 1.45;
@@ -275,6 +329,7 @@ kbd {
     <button class="hbtn" id="btnDest">🎯 도시 바꾸기</button>
     <button class="hbtn" id="btnAuto">🤖 자동조종</button>
     <button class="hbtn" id="btnCam">🎥 몸으로 조종</button>
+    <button class="hbtn" id="btnNet">🌐 함께 하기</button>
     <button class="hbtn" id="btnSound">🔊 소리</button>
     <button class="hbtn" id="btnPassport">📗 여권 <b id="stampCount">0</b>/<b id="stampTotal">24</b></button>
     <button class="hbtn" id="btnHelp">❓</button>
@@ -293,6 +348,13 @@ kbd {
     민감도
     <input type="range" id="camSens" min="20" max="90" step="2" value="46" />
   </label>
+</div>
+
+<!-- ===================== 함께 하는 친구 목록 ===================== -->
+<div id="netPanel">
+  <div class="net-head"><b>🌐 함께 하기</b><span id="netCodeTag">----</span></div>
+  <div id="netList"></div>
+  <button id="netLeave">나가기</button>
 </div>
 
 <!-- ===================== 도착 배너 ===================== -->
@@ -338,6 +400,7 @@ kbd {
       <div><kbd>P</kbd><span>여권 열기</span></div>
       <div><kbd>M</kbd><span>소리 켜기·끄기</span></div>
       <div><kbd>C</kbd><span>몸으로 조종하기(카메라)</span></div>
+      <div><kbd>F</kbd><span>친구와 함께 날기</span></div>
       <div><span class="wide">창문을 마우스로 꾹 누른 채 움직여도 조종할 수 있어요.</span></div>
     </div>
     <button class="close" data-close="help">닫기</button>
@@ -371,6 +434,43 @@ kbd {
       <button class="close" data-close="camHelp">닫기</button>
     </div>
     <p class="tip" id="camNote"></p>
+  </div>
+</div>
+
+<!-- ===================== 함께 하기 안내 ===================== -->
+<div class="modal" id="netHelp">
+  <div class="sheet">
+    <h2>🌐 친구와 함께 날기</h2>
+    <p class="sub">같은 <b>네 자리 코드</b>를 넣으면 같은 하늘에서 만납니다.
+      친구의 비행기가 창밖에 보이고, 이름표도 함께 떠요.</p>
+
+    <div class="net-form">
+      <label>내 별명
+        <input type="text" id="netName" maxlength="10" placeholder="예: 하늘이" value="조종사" />
+      </label>
+      <label>방 코드
+        <span class="code-row">
+          <input type="text" id="netCode" maxlength="4" inputmode="numeric" placeholder="1234" />
+          <button type="button" id="netNew">새 코드</button>
+        </span>
+      </label>
+    </div>
+
+    <div class="steps net-steps">
+      <div><b>1</b> 한 사람이 <b>새 코드</b>를 눌러 코드를 만들어요</div>
+      <div><b>2</b> 그 코드를 친구에게 알려 줘요</div>
+      <div><b>3</b> 둘 다 같은 코드를 넣고 <b>함께 날기</b>를 누르면 끝!</div>
+    </div>
+
+    <p class="privacy">🔒 주고받는 것은 <b>별명과 비행기 위치</b>뿐입니다.
+      공개 중계소를 쓰기 때문에 <b>코드를 아는 사람은 누구나 들어올 수 있어요.</b>
+      실제 이름 대신 별명을 써 주세요.</p>
+
+    <div class="cam-actions">
+      <button id="netJoin">✈️ 함께 날기</button>
+      <button class="close" data-close="netHelp">닫기</button>
+    </div>
+    <p class="tip" id="netNote"></p>
   </div>
 </div>
 
@@ -517,6 +617,14 @@ var Engine3D = (function () {
       y: dx * u[0] + dy * u[1] + dz * u[2],
       z: dx * f[0] + dy * f[1] + dz * f[2]
     };
+  };
+
+  /* 월드의 한 점이 화면 어디에 찍히는지 (친구 이름표를 붙일 때 씁니다) */
+  Renderer.prototype.project = function (x, y, z) {
+    var c = this.toCam(x, y, z);
+    if (c.z < 2) return null;
+    var k = this.focal / c.z;
+    return { x: this.cx + c.x * k, y: this.cy - c.y * k, d: c.z };
   };
 
   /* 색 = 기본색 × 밝기, 그리고 거리만큼 안개색으로 흐려지게 */
@@ -737,6 +845,368 @@ var Engine3D = (function () {
     makeBasis: makeBasis,
     clamp: clamp,
     TAU: TAU
+  };
+})();
+
+</script>
+<script>
+/* ===== js/mqtt-lite.js ===== */
+/* =========================================================================
+ *  mqtt-lite.js — 아주 작은 MQTT 클라이언트 (QoS 0 전용, 라이브러리 없음)
+ *
+ *  친구와 같은 하늘에서 날려면 서로의 위치를 주고받을 '중계소'가 필요합니다.
+ *  깃허브 페이지는 정적 사이트라 서버를 둘 수 없으므로,
+ *  누구나 쓸 수 있는 공개 MQTT 중계소에 WebSocket 으로 붙습니다.
+ *
+ *  MQTT 3.1.1 중에서 이 놀이에 필요한 것만 직접 만들었습니다.
+ *    CONNECT / CONNACK / SUBSCRIBE / SUBACK / PUBLISH / PINGREQ / PINGRESP
+ * ========================================================================= */
+'use strict';
+
+var MqttLite = (function () {
+
+  var TE = new TextEncoder();
+  var TD = new TextDecoder();
+
+  /* 남은 길이(Remaining Length)는 128 진법 가변 길이로 적습니다 */
+  function varint(n) {
+    var out = [], b;
+    do {
+      b = n % 128; n = Math.floor(n / 128);
+      if (n > 0) b |= 128;
+      out.push(b);
+    } while (n > 0);
+    return out;
+  }
+
+  /* 문자열은 [길이 2바이트][UTF-8] 형태 */
+  function utf(s) {
+    var b = TE.encode(s), out = [b.length >> 8, b.length & 255], i;
+    for (i = 0; i < b.length; i++) out.push(b[i]);
+    return out;
+  }
+
+  function frame(head, body) {
+    return new Uint8Array([head].concat(varint(body.length), body));
+  }
+
+  /* --------------------------------------------------------------------- */
+
+  function Client(url, opts) {
+    opts = opts || {};
+    this.url       = url;
+    this.clientId  = opts.clientId || ('wf' + Math.random().toString(16).slice(2, 14));
+    this.keepalive = 45;
+    this.onmessage = opts.onmessage || function () {};
+    this.onready   = opts.onready   || function () {};
+    this.onclose   = opts.onclose   || function () {};
+    this.buf   = new Uint8Array(0);
+    this.ready = false;
+    this.dead  = false;
+    this.subs  = [];
+    this.pid   = 1;
+    this._open();
+  }
+
+  Client.prototype._open = function () {
+    var self = this;
+    try {
+      this.ws = new WebSocket(this.url, 'mqtt');
+    } catch (e) {
+      this.onclose('중계소에 연결할 수 없어요.');
+      return;
+    }
+    this.ws.binaryType = 'arraybuffer';
+
+    this.ws.onopen = function () {
+      /* CONNECT : 프로토콜 이름 MQTT, 버전 4(3.1.1), clean session */
+      var body = utf('MQTT').concat(
+        [0x04, 0x02, self.keepalive >> 8, self.keepalive & 255],
+        utf(self.clientId));
+      self._send(frame(0x10, body));
+    };
+    this.ws.onmessage = function (ev) { self._data(new Uint8Array(ev.data)); };
+    this.ws.onerror   = function () { /* onclose 에서 함께 처리 */ };
+    this.ws.onclose   = function () {
+      self.ready = false;
+      clearInterval(self.ping);
+      if (!self.dead) self.onclose('중계소와 연결이 끊어졌어요.');
+    };
+  };
+
+  Client.prototype._send = function (bytes) {
+    if (this.ws && this.ws.readyState === 1) this.ws.send(bytes);
+  };
+
+  /* 받은 바이트를 모아 두었다가 완성된 패킷만 꺼낸다 */
+  Client.prototype._data = function (chunk) {
+    var merged = new Uint8Array(this.buf.length + chunk.length);
+    merged.set(this.buf); merged.set(chunk, this.buf.length);
+    this.buf = merged;
+
+    for (;;) {
+      if (this.buf.length < 2) return;
+      var mult = 1, len = 0, i = 1, b;
+      do {
+        if (i >= this.buf.length) return;          /* 아직 덜 왔다 */
+        b = this.buf[i++];
+        len += (b & 127) * mult;
+        mult *= 128;
+        if (mult > 128 * 128 * 128) { this.buf = new Uint8Array(0); return; }
+      } while (b & 128);
+      if (this.buf.length < i + len) return;       /* 본문이 덜 왔다 */
+
+      var head = this.buf[0];
+      var body = this.buf.subarray(i, i + len);
+      this._packet(head >> 4, body);
+      this.buf = this.buf.slice(i + len);
+    }
+  };
+
+  Client.prototype._packet = function (type, body) {
+    var self = this;
+    if (type === 2) {                              /* CONNACK */
+      if (body.length >= 2 && body[1] !== 0) {
+        this.onclose('중계소가 연결을 거절했어요. (코드 ' + body[1] + ')');
+        this.close();
+        return;
+      }
+      this.ready = true;
+      this.ping = setInterval(function () { self._send(frame(0xC0, [])); },
+                              (this.keepalive * 1000) / 2);
+      this.subs.forEach(function (t) { self.subscribe(t); });
+      this.onready();
+      return;
+    }
+    if (type === 3) {                              /* PUBLISH (QoS 0) */
+      var tl = (body[0] << 8) | body[1];
+      var topic = TD.decode(body.subarray(2, 2 + tl));
+      var msg   = TD.decode(body.subarray(2 + tl));
+      this.onmessage(topic, msg);
+    }
+    /* SUBACK(9) · PINGRESP(13) 은 따로 할 일이 없습니다 */
+  };
+
+  Client.prototype.subscribe = function (topic) {
+    if (this.subs.indexOf(topic) < 0) this.subs.push(topic);
+    if (!this.ready) return;
+    var id = this.pid++ & 0xffff || 1;
+    this._send(frame(0x82, [id >> 8, id & 255].concat(utf(topic), [0])));
+  };
+
+  Client.prototype.publish = function (topic, message) {
+    if (!this.ready) return;
+    var payload = TE.encode(message), body = utf(topic), i;
+    for (i = 0; i < payload.length; i++) body.push(payload[i]);
+    this._send(frame(0x30, body));
+  };
+
+  Client.prototype.close = function () {
+    this.dead = true;
+    clearInterval(this.ping);
+    try { this._send(frame(0xE0, [])); } catch (e) { /* 이미 닫혔으면 그만 */ }
+    try { this.ws.close(); } catch (e) { /* 무시 */ }
+    this.ready = false;
+  };
+
+  return { Client: Client };
+})();
+
+</script>
+<script>
+/* ===== js/net.js ===== */
+/* =========================================================================
+ *  net.js — 함께 날기 (같은 코드를 넣으면 같은 하늘)
+ *
+ *  · 네 자리 코드가 곧 '방'입니다. 같은 코드를 넣은 사람끼리 서로가 보입니다.
+ *  · 1초에 열 번 내 위치를 보내고, 친구 위치를 받습니다.
+ *  · 받은 위치는 그대로 찍지 않고 '추측 항법'으로 이어 그려서 부드럽게 만듭니다.
+ *    (10 번/초로 받아도 60 번/초로 자연스럽게 움직입니다)
+ *
+ *  주고받는 것은 별명과 비행기 위치뿐입니다.
+ * ========================================================================= */
+'use strict';
+
+var Net = (function () {
+
+  /* 공개 중계소 — 하나가 막히면 다음 것으로 넘어갑니다 */
+  var BROKERS = [
+    'wss://broker.emqx.io:8084/mqtt',
+    'wss://broker.hivemq.com:8884/mqtt',
+    'wss://test.mosquitto.org:8081/mqtt'
+  ];
+  var PREFIX  = 'wf7k2x';       /* 다른 사람의 MQTT 방과 섞이지 않도록 */
+  var RATE    = 100;            /* 내 위치를 보내는 간격(ms) */
+  var TIMEOUT = 7000;           /* 이만큼 소식이 없으면 나간 것으로 */
+
+  var COLORS = [
+    [232,  92,  84], [ 86, 158, 226], [104, 194, 122], [244, 190,  78],
+    [190, 124, 226], [ 96, 208, 200], [244, 138,  92], [226, 128, 176]
+  ];
+
+  var client = null, brokerIx = 0;
+  var code = null, myName = '', myId = null;
+  var peers = Object.create(null);
+  var beat = null;              /* 위치 보내기는 화면 그리기와 따로 돕니다 */
+  var phase = 'off';            /* off | connecting | on | error */
+  var msg = '';
+  var onChange = null;
+
+  function shortId() { return Math.random().toString(36).slice(2, 8); }
+  function topicRoot() { return PREFIX + '/' + code; }
+
+  function setPhase(p, m) {
+    phase = p; msg = m || '';
+    if (onChange) onChange(phase, msg);
+  }
+
+  /* ------------------------------------------------------------ 들어가기 */
+
+  function join(roomCode, name, changeCallback) {
+    leave(true);
+    onChange = changeCallback || onChange;
+    code   = String(roomCode).replace(/[^0-9A-Za-z]/g, '').slice(0, 8).toUpperCase();
+    myName = (name || '조종사').slice(0, 10);
+    myId   = shortId();
+    peers  = Object.create(null);
+    brokerIx = 0;
+    connect();
+    clearInterval(beat);
+    beat = setInterval(tick, RATE);
+  }
+
+  function connect() {
+    setPhase('connecting', '친구를 찾는 중…');
+    client = new MqttLite.Client(BROKERS[brokerIx], {
+      onready: function () {
+        client.subscribe(topicRoot() + '/+');
+        setPhase('on', '');
+        send();
+      },
+      onmessage: receive,
+      onclose: function (why) {
+        if (phase === 'off') return;
+        brokerIx++;
+        if (brokerIx < BROKERS.length) { connect(); return; }   /* 다음 중계소로 */
+        brokerIx = 0;
+        setPhase('error', why + ' 다시 붙어 볼게요…');
+        setTimeout(function () { if (phase === 'error') connect(); }, 3000);
+      }
+    });
+  }
+
+  function leave(quiet) {
+    clearInterval(beat); beat = null;
+    if (client) {
+      if (client.ready && code && myId) {
+        client.publish(topicRoot() + '/' + myId, JSON.stringify({ bye: 1 }));
+      }
+      client.close();
+      client = null;
+    }
+    peers = Object.create(null);
+    if (!quiet) { code = null; setPhase('off', ''); }
+    else { phase = 'off'; }
+  }
+
+  /* --------------------------------------------------------- 주고받기 */
+
+  function send() {
+    if (!client || !client.ready) return;
+    var p = Net.plane;
+    if (!p) return;
+    client.publish(topicRoot() + '/' + myId, JSON.stringify({
+      n: myName,
+      x: Math.round(p.pos[0]), y: Math.round(p.pos[1]), z: Math.round(p.pos[2]),
+      h: +p.yaw.toFixed(3), t: +p.pitch.toFixed(3), r: +p.roll.toFixed(3),
+      s: Math.round(p.speed)
+    }));
+  }
+
+  function receive(topic, text) {
+    var id = topic.slice(topic.lastIndexOf('/') + 1);
+    if (id === myId) return;                       /* 내가 보낸 것 */
+    var d;
+    try { d = JSON.parse(text); } catch (e) { return; }
+
+    if (d.bye) { delete peers[id]; if (onChange) onChange(phase, msg); return; }
+    if (typeof d.x !== 'number' || typeof d.h !== 'number') return;
+
+    var p = peers[id], isNew = false;
+    if (!p) {
+      var n = 0, i;
+      for (i = 0; i < id.length; i++) n = (n * 31 + id.charCodeAt(i)) >>> 0;
+      p = peers[id] = { ci: n % COLORS.length, rx: d.x, ry: d.y, rz: d.z, ryaw: d.h };
+      isNew = true;
+    }
+    p.name  = String(d.n || '친구').slice(0, 10);
+    p.x = d.x; p.y = d.y; p.z = d.z;
+    p.yaw = d.h; p.pitch = d.t || 0; p.roll = d.r || 0;
+    p.speed = d.s || 0;
+    p.last = performance.now();
+    if (isNew && onChange) onChange(phase, msg);   /* 이름까지 채운 뒤에 알린다 */
+  }
+
+  /* ------------------------------------------------------------ 심장박동
+   * 위치 보내기와 친구 정리는 화면 그리기(requestAnimationFrame)와 따로 돕니다.
+   * 창을 다른 데로 옮겨 두어도 친구 눈에는 계속 날고 있어야 하니까요.
+   * ------------------------------------------------------------------- */
+  function tick() {
+    if (phase === 'off') return;
+    send();
+    var now = performance.now(), id, gone = false;
+    for (id in peers) {
+      if (now - peers[id].last > TIMEOUT) { delete peers[id]; gone = true; }
+    }
+    if (gone && onChange) onChange(phase, msg);
+  }
+
+  /* --------------------------------------------- 매 프레임 (부드럽게 잇기) */
+
+  function update(dt) {
+    if (phase === 'off') return;
+    var id, p, k;
+    for (id in peers) {
+      p = peers[id];
+
+      /* 추측 항법 — 마지막으로 받은 방향·속도로 계속 날려 둔다 */
+      var cp = Math.cos(p.pitch);
+      p.x += Math.sin(p.yaw) * cp * p.speed * dt;
+      p.y += Math.sin(p.pitch)     * p.speed * dt;
+      p.z += Math.cos(p.yaw) * cp * p.speed * dt;
+
+      /* 화면에 그릴 위치는 그 값으로 부드럽게 따라간다 */
+      k = Math.min(1, dt * 6);
+      p.rx += (p.x - p.rx) * k;
+      p.ry += (p.y - p.ry) * k;
+      p.rz += (p.z - p.rz) * k;
+
+      var da = p.yaw - p.ryaw;
+      while (da >  Math.PI) da -= Math.PI * 2;
+      while (da < -Math.PI) da += Math.PI * 2;
+      p.ryaw += da * k;
+    }
+  }
+
+  function list() {
+    var out = [], id;
+    for (id in peers) out.push(peers[id]);
+    return out;
+  }
+
+  return {
+    plane: null,                 /* main.js 가 자기 비행기를 여기에 꽂아 줍니다 */
+    join: join,
+    leave: leave,
+    update: update,
+    peers: list,
+    count: function () { return list().length; },
+    isOn:  function () { return phase === 'on'; },
+    phase: function () { return phase; },
+    message: function () { return msg; },
+    code:  function () { return code; },
+    color: function (i) { return COLORS[i % COLORS.length]; },
+    newCode: function () { return String(Math.floor(1000 + Math.random() * 9000)); }
   };
 })();
 
@@ -1953,6 +2423,32 @@ var World = (function () {
     return g;
   });
 
+  /* 함께 나는 친구의 비행기 — 색만 바꾼 여객기를 미리 만들어 둡니다 */
+  function playerJet(c) {
+    var g = G();
+    box(g,   0,  0,   0, 16, 15,  96, [244, 246, 250], 0, true);   /* 동체 */
+    box(g,   0,  3,  -4, 108,  5, 27, [232, 236, 242], 0, true);   /* 날개 */
+    box(g,   0, 10, -38,   6, 27, 20, c, 0, true);                 /* 꼬리 날개 */
+    box(g,   0, 10, -38,  44,  4, 13, [232, 236, 242], 0, true);
+    box(g, -29, -7,   0,  12, 11, 25, [186, 192, 202], 0, true);   /* 엔진 */
+    box(g,  29, -7,   0,  12, 11, 25, [186, 192, 202], 0, true);
+    box(g,   0,  6,  11,  17,  5, 68, c, 0, true);                 /* 색 줄무늬 */
+    return g;
+  }
+  var PLAYER_JETS = null;
+
+  /* 친구 한 명을 그린다 (p: {rx, ry, rz, ryaw, ci}) */
+  function drawPlayer(R, camPos, p) {
+    if (!PLAYER_JETS) {
+      PLAYER_JETS = [];
+      for (var i = 0; i < 8; i++) PLAYER_JETS.push(playerJet(Net.color(i)));
+    }
+    var dx = wrapDelta(p.rx, camPos[0]), dz = wrapDelta(p.rz, camPos[2]);
+    if (Math.hypot(dx, dz) > 14000) return null;
+    drawGeom(R, PLAYER_JETS[p.ci % 8], camPos[0] + dx, p.ry, camPos[2] + dz, 0, p.ryaw);
+    return [camPos[0] + dx, p.ry, camPos[2] + dz];
+  }
+
   function makeTraffic() {
     var r = rngFrom(7777), i, t = { ships: [], jets: [], balloons: [] };
     for (i = 0; i < 225; i++)
@@ -2096,6 +2592,7 @@ var World = (function () {
     SIZE: SIZE,
     init: init,
     collect: collect,
+    drawPlayer: drawPlayer,
     wrapDelta: wrapDelta,
     cities: function () { return cities; }
   };
@@ -2218,7 +2715,9 @@ var Cockpit = (function () {
 
   /* 계기판 높이 (화면 크기에 맞춰 자동으로) */
   function panelHeight(W, H) {
-    return Math.round(Math.max(170, Math.min(H * 0.36, 360)));
+    H = Math.max(1, H);
+    /* 화면이 아주 낮아도 계기판이 창문을 다 잡아먹지 않게 (창 높이가 음수가 되면 안 됨) */
+    return Math.round(Math.min(Math.max(150, H * 0.36), 360, H * 0.6));
   }
 
   /* ---------------------------------------------------------------- 창틀 */
@@ -2557,6 +3056,7 @@ var Cockpit = (function () {
       ['저고도',   s.lowAlt,    '#fbbf24'],
       ['소리',     s.sound,     '#60a5fa']
     ];
+    if (s.friends >= 0) items.splice(1, 0, ['친구 ' + s.friends, true, '#34d399']);
     ctx.save();
     ctx.font = '700 12px "Apple SD Gothic Neo", sans-serif';
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -2631,7 +3131,8 @@ var Cockpit = (function () {
 
   /* 둥근 사각형 경로 */
   function roundRectPath(ctx, x, y, w, h, r) {
-    r = Math.min(r, w / 2, h / 2);
+    if (!(w > 0) || !(h > 0)) return;          /* 크기가 0 이하면 그릴 것이 없다 */
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
     ctx.moveTo(x + r, y);
     ctx.arcTo(x + w, y,     x + w, y + h, r);
     ctx.arcTo(x + w, y + h, x,     y + h, r);
@@ -2673,6 +3174,7 @@ var Input = (function () {
       if (e.code === 'KeyM')   { onAction('sound'); }
       if (e.code === 'KeyP')   { onAction('passport'); }
       if (e.code === 'KeyC')   { onAction('camera'); }
+      if (e.code === 'KeyF')   { onAction('friends'); }
       if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].indexOf(e.code) >= 0) e.preventDefault();
     });
     window.addEventListener('keyup', function (e) { keys[e.code] = 0; });
@@ -2811,7 +3313,7 @@ var Sound = (function () {
   var destIdx   = 1;                 /* 처음 목적지 = 도쿄 */
   var visited   = Object.create(null);
   var overCity  = null;
-  var lastT     = 0, hudTick = 0, shakeT = 0;
+  var lastT     = 0, hudTick = 0, shakeT = 0, netTick = 0;
 
   var el = {
     destName:  document.getElementById('destName'),
@@ -2831,17 +3333,27 @@ var Sound = (function () {
     camPanel:  document.getElementById('camPanel'),
     camView:   document.getElementById('camView'),
     camStart:  document.getElementById('camStart'),
-    camNote:   document.getElementById('camNote')
+    camNote:   document.getElementById('camNote'),
+    btnNet:    document.getElementById('btnNet'),
+    netHelp:   document.getElementById('netHelp'),
+    netPanel:  document.getElementById('netPanel'),
+    netList:   document.getElementById('netList'),
+    netCodeTag:document.getElementById('netCodeTag'),
+    netName:   document.getElementById('netName'),
+    netCode:   document.getElementById('netCode'),
+    netNote:   document.getElementById('netNote')
   };
 
   /* ---------------------------------------------------------- 화면 크기 */
   function resize() {
-    var w = window.innerWidth, h = window.innerHeight;
+    var w = Math.max(1, window.innerWidth), h = Math.max(1, window.innerHeight);
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
     if (w * h * dpr * dpr > 4.2e6) dpr = Math.sqrt(4.2e6 / (w * h));   /* 성능 보호 */
     R.resize(w, h, dpr);
     /* 카메라 미리보기는 계기판 바로 위에 (방향 버튼·계기와 겹치지 않게) */
-    el.camPanel.style.bottom = (Cockpit.panelHeight(w, h) + 10) + 'px';
+    var pb = (Cockpit.panelHeight(w, h) + 10) + 'px';
+    el.camPanel.style.bottom = pb;
+    el.netPanel.style.bottom = pb;
   }
   window.addEventListener('resize', resize);
 
@@ -2979,8 +3491,72 @@ var Sound = (function () {
     });
   }
 
+  /* ------------------------------------------------------- 함께 하기 */
+  function onNetChange(phase, m) {
+    var on = (phase !== 'off');
+    el.netPanel.classList.toggle('show', on);
+    el.btnNet.classList.toggle('on', phase === 'on');
+    el.netNote.textContent = m || '';
+    el.netCodeTag.textContent = Net.code() || '----';
+    if (phase === 'on') el.netHelp.classList.remove('show');
+    renderNetList();
+  }
+
+  function renderNetList() {
+    var friends = Net.peers();
+    if (!friends.length) {
+      el.netList.innerHTML = '<div class="none">' +
+        (Net.phase() === 'on' ? '아직 친구가 없어요.<br />같은 코드를 넣으면 만나요!' : '연결하는 중…') +
+        '</div>';
+      return;
+    }
+    var html = '';
+    for (var i = 0; i < friends.length; i++) {
+      var f = friends[i], c = Net.color(f.ci);
+      var dx = World.wrapDelta(f.rx, plane.pos[0]);
+      var dz = World.wrapDelta(f.rz, plane.pos[2]);
+      html += '<div class="who">' +
+        '<span class="dot" style="background:rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')"></span>' +
+        '<span class="nm">' + esc(f.name || '친구') + '</span>' +
+        '<span class="km">' + (Math.hypot(dx, dz) / 1000).toFixed(1) + 'km</span></div>';
+    }
+    el.netList.innerHTML = html;
+  }
+
+  function esc(t) {
+    return String(t).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  function openNet() {
+    if (Net.phase() !== 'off') { el.netPanel.classList.toggle('show'); return; }
+    if (!el.netCode.value) el.netCode.value = Net.newCode();
+    el.netHelp.classList.add('show');
+  }
+
+  function bindNet() {
+    Net.plane = plane;
+    el.btnNet.addEventListener('click', openNet);
+    document.getElementById('netNew').addEventListener('click', function () {
+      el.netCode.value = Net.newCode();
+    });
+    document.getElementById('netJoin').addEventListener('click', function () {
+      var codeVal = (el.netCode.value || '').trim();
+      if (codeVal.length < 3) { el.netNote.textContent = '코드를 네 자리 넣어 주세요.'; return; }
+      Net.join(codeVal, el.netName.value || '조종사', onNetChange);
+    });
+    document.getElementById('netLeave').addEventListener('click', function () {
+      Net.leave(); onNetChange('off', '');
+    });
+    el.netCode.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') document.getElementById('netJoin').click();
+    });
+  }
+
   function bind() {
     bindCamera();
+    bindNet();
     document.getElementById('btnDest').addEventListener('click', function () { setDest(destIdx + 1); });
     el.btnAuto.addEventListener('click', toggleAuto);
     el.btnSound.addEventListener('click', toggleSound);
@@ -3005,11 +3581,25 @@ var Sound = (function () {
   }
 
   /* --------------------------------------------------------------- 루프 */
+  var frameErrors = 0;
+
   function loop(t) {
+    /* 한 프레임이 잘못돼도 놀이가 통째로 멈추면 안 됩니다.
+       (아이들 앞에서 화면이 까맣게 굳는 것이 가장 나쁜 고장이라서) */
+    try { frame(t); }
+    catch (e) {
+      if (++frameErrors <= 3 && window.console) console.error('한 프레임을 건너뜁니다:', e);
+    }
+    requestAnimationFrame(loop);
+  }
+
+  function frame(t) {
     var dt = Math.min(0.05, (t - lastT) / 1000);
     lastT = t;
 
     Vision.update(t);
+    Net.update(dt);
+    if ((netTick += dt) > 0.4) { netTick = 0; if (Net.phase() !== 'off') renderNetList(); }
 
     var cmd = Input.poll();
     if (autopilot) {
@@ -3024,8 +3614,6 @@ var Sound = (function () {
 
     checkArrival();
     if ((hudTick += dt) > 0.12) { hudTick = 0; updateHUD(); }
-
-    requestAnimationFrame(loop);
   }
 
   function render(t) {
@@ -3046,7 +3634,15 @@ var Sound = (function () {
     });
     R.drawSky();
     World.collect(R, plane.pos, t / 1000);
+
+    var friends = Net.phase() !== 'off' ? Net.peers() : [];
+    var tags = [], i, at;
+    for (i = 0; i < friends.length; i++) {
+      at = World.drawPlayer(R, plane.pos, friends[i]);
+      if (at) tags.push({ at: at, f: friends[i] });
+    }
     R.flush();
+    drawNameTags(R, tags);
 
     Cockpit.draw(R.ctx, W, H, {
       speedKmh: plane.speed * 3.6,
@@ -3061,8 +3657,49 @@ var Sound = (function () {
       lowAlt:   plane.pos[1] < 200 && (t % 700 < 420),
       sound:    Sound.isOn(),
       camera:   Vision.isActive(),
+      friends:  Net.isOn() ? Net.count() : -1,
       overCity: overCity
     });
+  }
+
+  /* 친구 비행기 위에 이름표를 붙인다 (계기판보다 아래 순서로 그려서 가려지게) */
+  function drawNameTags(R, tags) {
+    if (!tags.length) return;
+    var ctx = R.ctx, i;
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (i = 0; i < tags.length; i++) {
+      var t = tags[i], p = R.project(t.at[0], t.at[1] + 90, t.at[2]);
+      if (!p) continue;
+      if (p.x < -80 || p.x > R.w + 80 || p.y < -40 || p.y > R.h) continue;
+      var fs = Math.max(10, Math.min(15, 2200 / p.d));
+      ctx.font = '800 ' + fs.toFixed(0) + 'px "Apple SD Gothic Neo", sans-serif';
+      var label = (t.f.name || '친구') + '  ' + (p.d / 1000).toFixed(1) + 'km';
+      var w = ctx.measureText(label).width + 16, h = fs + 10;
+      var c = Net.color(t.f.ci);
+      ctx.globalAlpha = p.d > 9000 ? 0.35 : 1;
+      ctx.beginPath();
+      roundRect(ctx, p.x - w / 2, p.y - h / 2, w, h, h / 2);
+      ctx.fillStyle = 'rgba(10,16,22,0.72)'; ctx.fill();
+      ctx.strokeStyle = 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')';
+      ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.fillText(label, p.x, p.y + 1);
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+  }
+
+  function roundRect(ctx, x, y, w, h, r) {
+    if (!(w > 0) || !(h > 0)) return;
+    r = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.moveTo(x + r, y);
+    ctx.arcTo(x + w, y, x + w, y + h, r);
+    ctx.arcTo(x + w, y + h, x, y + h, r);
+    ctx.arcTo(x, y + h, x, y, r);
+    ctx.arcTo(x, y, x + w, y, r);
+    ctx.closePath();
   }
 
   /* --------------------------------------------------------------- 시작 */
@@ -3075,6 +3712,7 @@ var Sound = (function () {
     if (action === 'sound')     toggleSound();
     if (action === 'passport')  { updateStamps(); el.passport.classList.toggle('show'); }
     if (action === 'camera')    openCam();
+    if (action === 'friends')   openNet();
   });
   bind();
   updateStamps();
@@ -3086,7 +3724,7 @@ var Sound = (function () {
                                                dest: dest().name, overCity: overCity }; } };
 
   /* 시작 화면 뒤에서도 배경이 보이도록 한 장면 그려둔다 */
-  render(0);
+  try { render(0); } catch (e) { /* 창이 아직 자리를 못 잡았으면 다음 프레임에 */ }
 })();
 
 </script>

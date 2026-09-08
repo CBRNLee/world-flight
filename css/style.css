@@ -125,6 +125,60 @@ html, body {
             white-space: nowrap; }
 .cam-sens input { flex: 1; accent-color: var(--hi); }
 
+/* ------------------------------------------------------- 함께 하기 패널 */
+#netPanel {
+  position: fixed; right: 12px; bottom: 12px; z-index: 26;   /* bottom 은 main.js 가 조정 */
+  display: none; flex-direction: column; gap: 7px; width: 190px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 16px; padding: 10px; backdrop-filter: blur(8px);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .45);
+}
+#netPanel.show { display: flex; }
+.net-head { display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; }
+.net-head span {
+  font-family: ui-monospace, Menlo, monospace; font-size: 16px; font-weight: 800;
+  color: var(--hi); letter-spacing: .12em;
+}
+#netList { display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+#netList .who { display: flex; align-items: center; gap: 6px; }
+#netList .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+#netList .nm { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#netList .km { opacity: .6; font-variant-numeric: tabular-nums; }
+#netList .none { opacity: .55; line-height: 1.4; }
+#netLeave {
+  font: inherit; font-size: 12px; font-weight: 700; color: #fff;
+  background: rgba(255, 255, 255, .08); border: 1px solid var(--line);
+  border-radius: 9px; padding: 6px; cursor: pointer;
+}
+#netLeave:hover { background: rgba(255, 255, 255, .16); }
+
+.net-form { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+.net-form label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; opacity: .8; }
+.net-form input {
+  font: inherit; font-size: 17px; font-weight: 700; color: #fff;
+  background: rgba(255, 255, 255, .07); border: 1px solid var(--line);
+  border-radius: 12px; padding: 11px 14px; width: 100%;
+}
+.net-form input:focus { outline: 2px solid var(--hi); outline-offset: 1px; }
+.code-row { display: flex; gap: 8px; }
+#netCode {
+  font-family: ui-monospace, Menlo, monospace; font-size: 26px;
+  letter-spacing: .28em; text-align: center;
+}
+#netNew {
+  flex: none; font: inherit; font-size: 13px; font-weight: 700; color: #fff;
+  background: rgba(255, 255, 255, .09); border: 1px solid var(--line);
+  border-radius: 12px; padding: 0 16px; cursor: pointer; white-space: nowrap;
+}
+#netNew:hover { background: rgba(255, 255, 255, .18); }
+.net-steps { margin: 0 0 4px; }
+#netJoin {
+  flex: 1; font: inherit; font-size: 16px; font-weight: 800; color: #201800;
+  background: linear-gradient(180deg, #ffe27a, #ffc023);
+  border: 0; border-radius: 15px; padding: 13px; cursor: pointer;
+}
+#netNote { min-height: 18px; }
+
 .gesture { display: flex; flex-direction: column; gap: 9px; }
 .gesture > div {
   display: flex; align-items: center; gap: 12px; font-size: 15px; line-height: 1.45;
