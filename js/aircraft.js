@@ -36,14 +36,32 @@ Aircraft.prototype.update = function (dt, cmd) {
   var target = 55 + this.throttle * 235;                 // 55 ~ 290 m/s
   this.speed += (target - this.speed) * Math.min(1, dt * 0.55);
 
-  /* --- 좌우 기울이기 --- */
-  this.roll += cmd.roll * 1.35 * dt;
-  if (Math.abs(cmd.roll) < 0.04) this.roll *= Math.pow(0.22, dt);   // 자동 수평
+  /* --- 좌우 기울이기 ---
+   *
+   *  방향키는 '누르는 동안 계속 기울어지는' 방식이 자연스럽습니다.
+   *  하지만 태블릿을 기울이거나 팔을 기울이는 것은 '이만큼 기울여 줘' 라는
+   *  자리(위치) 명령입니다. 이것을 속도 명령으로 받으면
+   *   · 조금만 기울여도 시간이 지나며 끝까지 기울어지고
+   *   · 기울기를 되돌려도 비행기는 기울어진 채로 남습니다.
+   *  그래서 기울기·몸동작일 때는 기울인 만큼만 기울어지도록 합니다.
+   */
+  if (cmd.rollAbs !== null && cmd.rollAbs !== undefined) {
+    var wantRoll = clamp(cmd.rollAbs, -1, 1) * 1.0;      /* 최대 약 57도 */
+    this.roll += (wantRoll - this.roll) * Math.min(1, dt * 4.5);
+  } else {
+    this.roll += cmd.roll * 1.35 * dt;
+    if (Math.abs(cmd.roll) < 0.04) this.roll *= Math.pow(0.22, dt);   // 자동 수평
+  }
   this.roll = clamp(this.roll, -1.05, 1.05);
 
   /* --- 기수 올리고 내리기 --- */
-  this.pitch += cmd.pitch * 0.62 * dt;
-  if (Math.abs(cmd.pitch) < 0.04) this.pitch *= Math.pow(0.34, dt);
+  if (cmd.pitchAbs !== null && cmd.pitchAbs !== undefined) {
+    var wantPitch = clamp(cmd.pitchAbs, -1, 1) * 0.42;
+    this.pitch += (wantPitch - this.pitch) * Math.min(1, dt * 3.5);
+  } else {
+    this.pitch += cmd.pitch * 0.62 * dt;
+    if (Math.abs(cmd.pitch) < 0.04) this.pitch *= Math.pow(0.34, dt);
+  }
   this.pitch = clamp(this.pitch, -0.5, 0.55);
 
   /* --- 기울인 만큼 방향이 바뀐다 --- */
@@ -84,6 +102,7 @@ Aircraft.prototype.autopilot = function (target, cmd) {
   while (err >  Math.PI) err -= Math.PI * 2;
   while (err < -Math.PI) err += Math.PI * 2;
 
+  cmd.rollAbs = null; cmd.pitchAbs = null;      /* 자동조종은 스스로 몰아갑니다 */
   var wantRoll = Engine3D.clamp(err * 1.6, -0.85, 0.85);
   cmd.roll  = Engine3D.clamp((wantRoll - this.roll) * 3.2, -1, 1);
 

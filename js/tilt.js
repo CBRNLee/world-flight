@@ -31,7 +31,7 @@ var Tilt = (function () {
   var cur = { roll: 0, pitch: 0 };      /* 중립에서 몇 도 기울었나 */
   var sm  = { roll: 0, pitch: 0 };
   var out = { roll: 0, pitch: 0 };
-  var rangeDeg = 22;                    /* 이만큼 기울이면 최대 */
+  var rangeDeg = 30;                    /* 이만큼 기울이면 최대 */
   var DEAD = 3;                         /* 이보다 작게 흔들리는 건 무시 */
   var flipR = false, flipP = false;
   var haveEvent = false, startedAt = 0;
@@ -204,7 +204,9 @@ var Tilt = (function () {
     if (a <= DEAD) return 0;
     var v = (a - DEAD) / (rangeDeg - DEAD);
     if (v > 1) v = 1;
-    return s * v;
+    /* 가운데 근처는 더 천천히, 많이 기울일수록 크게.
+       살짝 기울였을 때 비행기가 확 도는 느낌을 없애 줍니다. */
+    return s * v * (0.4 + 0.6 * v);
   }
 
   function recenter() {
@@ -269,8 +271,8 @@ var Tilt = (function () {
     isRunning: function () { return phase !== 'off' && phase !== 'error'; },
     phase: function () { return phase; },
     message: function () { return msg; },
-    /* 슬라이더 0(둔감) ~ 100(민감) → 최대 기울기 40° ~ 12° */
-    setSensitivity: function (v) { rangeDeg = 40 - (v / 100) * 28; },
+    /* 슬라이더 0(둔감) ~ 100(민감) → 최대 기울기 45° ~ 15° */
+    setSensitivity: function (v) { rangeDeg = 45 - (v / 100) * 30; },
     flipRoll:  function (v) { flipR = v === undefined ? !flipR : !!v; return flipR; },
     flipPitch: function (v) { flipP = v === undefined ? !flipP : !!v; return flipP; },
     isFlipR: function () { return flipR; },
@@ -288,6 +290,7 @@ var Tilt = (function () {
       return out;
     },
     __setAngle: function (a) { forcedAngle = a; },
+    __on: function () { setPhase('on', ''); },
     __reset: function () { roll0 = null; pitch0 = null; sm.roll = 0; sm.pitch = 0; haveG = true; },
     __recenter: recenter
   };

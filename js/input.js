@@ -11,7 +11,8 @@ var Input = (function () {
   var keys  = Object.create(null);
   var touch = { up: 0, down: 0, left: 0, right: 0, thrUp: 0, thrDown: 0 };
   var drag  = null;                       // 화면을 끌어서 조종할 때
-  var cmd   = { pitch: 0, roll: 0, throttle: 0, throttleAbs: null, manual: false };
+  var cmd   = { pitch: 0, roll: 0, throttle: 0,
+                throttleAbs: null, rollAbs: null, pitchAbs: null, manual: false };
   var onAction = function () {};          // 스페이스/N 같은 단축키 알림
   var throttleSet = null;                 // 오른쪽 출력 막대로 정한 값 (0~1)
 
@@ -82,21 +83,23 @@ var Input = (function () {
     cmd.pitch    = Engine3D.clamp(p, -1, 1);
     cmd.roll     = Engine3D.clamp(r, -1, 1);
     cmd.throttle = Engine3D.clamp(t, -1, 1);
-    cmd.throttleAbs = null;
+    cmd.throttleAbs = null; cmd.rollAbs = null; cmd.pitchAbs = null;
     cmd.manual   = (Math.abs(cmd.pitch) > 0.02 || Math.abs(cmd.roll) > 0.02 ||
                     Math.abs(cmd.throttle) > 0.02);
 
-    /* 태블릿 기울기 — 손을 대고 있지 않은 축만 기울기가 맡는다 */
+    /* 태블릿 기울기 — 손을 대고 있지 않은 축만 기울기가 맡는다.
+       기울인 '만큼' 기울어지도록 위치 명령으로 넘깁니다. */
     if (typeof Tilt !== 'undefined' && Tilt.isActive()) {
-      if (Math.abs(cmd.roll)  < 0.02) cmd.roll  = Tilt.out.roll;
-      if (Math.abs(cmd.pitch) < 0.02) cmd.pitch = Tilt.out.pitch;
+      if (Math.abs(cmd.roll)  < 0.02) { cmd.roll  = Tilt.out.roll;  cmd.rollAbs  = Tilt.out.roll; }
+      if (Math.abs(cmd.pitch) < 0.02) { cmd.pitch = Tilt.out.pitch; cmd.pitchAbs = Tilt.out.pitch; }
     }
 
-    /* 카메라 신체 인식 — 기울기나 손이 잡고 있지 않은 축만 */
+    /* 카메라 신체 인식 — 기울기나 손이 잡고 있지 않은 축만.
+       팔을 기울인 '만큼' 기울어지고, 팔을 나란히 하면 곧바로 수평이 됩니다. */
     if (typeof Vision !== 'undefined' && Vision.isActive()) {
       var v = Vision.out;
-      if (Math.abs(cmd.roll)  < 0.02) cmd.roll  = v.roll;
-      if (Math.abs(cmd.pitch) < 0.02) cmd.pitch = v.pitch;
+      if (cmd.rollAbs  === null && Math.abs(cmd.roll)  < 0.02) { cmd.roll  = v.roll;  cmd.rollAbs  = v.roll; }
+      if (cmd.pitchAbs === null && Math.abs(cmd.pitch) < 0.02) { cmd.pitch = v.pitch; cmd.pitchAbs = v.pitch; }
       if (Math.abs(cmd.throttle) < 0.02 && v.throttle !== null) cmd.throttleAbs = v.throttle;
     }
 

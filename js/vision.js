@@ -798,6 +798,7 @@ var Vision = (function () {
       return feat;
     },
     /* 확인용 — 관절 좌표를 직접 넣어 조종 신호를 확인합니다 */
+    __on: function () { setPhase('on', ''); },
     __feedPose: function (L) {
       poseLm = L;
       var f = featuresFromPose(L);
