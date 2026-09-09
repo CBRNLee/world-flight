@@ -238,6 +238,10 @@ var Sound = (function () {
     document.getElementById('camSens').addEventListener('input', function () {
       Vision.setSensitivity(parseInt(this.value, 10));
     });
+    document.getElementById('camFlip').addEventListener('click', function () {
+      Vision.setMirror(!Vision.mirror());
+      this.classList.toggle('on', Vision.mirror());
+    });
   }
 
   /* ------------------------------------------------------- 함께 하기 */

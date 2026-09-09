@@ -37,13 +37,14 @@
 <div id="camPanel">
   <canvas id="camView" width="208" height="156"></canvas>
   <div class="cam-row">
-    <button id="camBg" title="배경을 다시 기억해요">🖼 배경</button>
-    <button id="camPose" title="팔 벌린 기준 자세를 다시 잡아요">🧍 기준</button>
+    <button id="camBg" title="사람이 없을 때의 배경을 다시 기억해요">🖼 배경</button>
+    <button id="camPose" title="팔을 옆으로 편 기준 자세를 다시 잡아요">🧍 기준</button>
+    <button id="camFlip" title="기울인 반대쪽으로 가면 눌러 주세요">↔ 좌우</button>
     <button id="camOff">끄기</button>
   </div>
   <label class="cam-sens">
     민감도
-    <input type="range" id="camSens" min="20" max="90" step="2" value="46" />
+    <input type="range" id="camSens" min="0" max="100" step="5" value="50" />
   </label>
 </div>
 
@@ -120,7 +121,8 @@
     <p class="sub" style="margin-top:14px">
       켜면 ① 배경을 기억하려고 <b>3초 동안 카메라 앞에서 비켜</b> 달라고 하고,
       ② 그다음 <b>팔을 옆으로 쭉 편 자세</b>를 3초 동안 기준으로 기억합니다.<br />
-      잘 안 되면 왼쪽 아래 미리보기의 <b>🖼 배경</b> · <b>🧍 기준</b> 버튼으로 다시 잡으세요.
+      잘 안 되면 왼쪽 아래 미리보기의 <b>🖼 배경</b> · <b>🧍 기준</b> 버튼으로 다시 잡으세요.<br />
+      기울인 <b>반대쪽</b>으로 날아가면 <b>↔ 좌우</b> 버튼을 한 번 누르면 됩니다.
     </p>
 
     <p class="privacy">🔒 카메라 영상은 <b>이 컴퓨터 안에서만</b> 처리됩니다.
