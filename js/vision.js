@@ -63,6 +63,9 @@ var Vision = (function () {
   var sf = null;                        /* 부드럽게 이어 그리기 위한 이전 값 */
   var floodT = 0;                       /* 배경이 완전히 어긋났을 때 스스로 고치기 */
 
+  var usingPose = false;  /* MediaPipe 자세 인식을 쓰는 중인지 */
+  var poseLm = null;      /* 최근에 찾은 관절들 */
+
   var phase = 'off';      /* off | starting | bg | pose | on | lost | error */
   var phaseT = 0;
   var neutral = null;
@@ -111,6 +114,7 @@ var Vision = (function () {
       mcv = document.createElement('canvas'); mcv.width = W; mcv.height = H;
       mctx = mcv.getContext('2d');
       mimg = mctx.createImageData(W, H);
+      if (typeof Pose !== 'undefined') Pose.load();   /* 받는 동안에도 놀이는 계속됩니다 */
       captureBackground();
       return true;
     }).catch(function (e) {
@@ -159,9 +163,11 @@ var Vision = (function () {
 
   /* 기준 자세(팔 벌리고 서기) 다시 잡기 */
   function capturePose() {
-    if (!bg) { captureBackground(); return; }
-    poseAcc = { hand: 0, head: 0, span: 0, n: 0 };
-    setPhase('pose', '팔을 옆으로 쭉! 살짝 흔들어 주세요');
+    var ready = (typeof Pose !== 'undefined' && Pose.isReady());
+    if (!bg && !ready) { captureBackground(); return; }
+    poseAcc = { hand: 0, head: 0, span: 0, sp: 0, n: 0 };
+    setPhase('pose', ready ? '팔을 옆으로 쭉 펴 주세요'
+                           : '팔을 옆으로 쭉! 살짝 흔들어 주세요');
   }
 
   /* -------------------------------------------------------------- 매 프레임 */
@@ -177,34 +183,48 @@ var Vision = (function () {
     cctx.restore();
     var px = cctx.getImageData(0, 0, W, H).data;
 
-    if (phase === 'bg') {
-      accumulateBackground(px);
-      if (now - phaseT > 2400) {
-        finishBackground();
-        capturePose();
-      }
-      drawPreview(false);
-      return;
+    /* ① 자세 인식 모델이 준비됐으면 그것을 쓴다.
+       이때는 배경을 기억할 필요가 아예 없으므로 '비켜 주세요' 단계를 건너뜁니다. */
+    var f = null, ready = (typeof Pose !== 'undefined' && Pose.isReady());
+    poseLm = null;
+    if (ready) {
+      poseLm = Pose.detect(video, now);
+      if (poseLm) f = featuresFromPose(poseLm);
+      if (phase === 'bg') { bg = null; capturePose(); }
     }
-    if (!bg) return;
+    usingPose = !!f;
 
-    computeMotion(px);
-    buildMask(px);
-    var f = extract();
+    /* ② 자세 인식이 아직 없으면 예전처럼 배경을 기억해서 실루엣으로 찾는다 */
+    if (!ready) {
+      if (phase === 'bg') {
+        accumulateBackground(px);
+        if (now - phaseT > 2400) { finishBackground(); capturePose(); }
+        drawPreview(false);
+        return;
+      }
+      if (!bg) return;
+      computeMotion(px);
+      buildMask(px);
+      f = extract();
+    }
     if (f) { feat = f; featAt = now; }
     else if (now - featAt > 500) { feat = null; }   /* 잠깐 놓친 것은 버티기 */
 
     if (phase === 'pose') {
-      /* 앞부분은 배경이 아직 자리를 잡는 중이라 버리고, 뒤쪽만 기준으로 삼는다 */
-      if (f && now - phaseT > 1300) {
+      /* 실루엣 방식은 배경이 자리를 잡는 앞부분을 버린다.
+         자세 인식은 그럴 필요가 없어 처음부터 모읍니다. */
+      if (f && (ready || now - phaseT > 1300)) {
         poseAcc.hand += f.hand; poseAcc.head += f.head;
-        poseAcc.span += f.span; poseAcc.n++;
+        poseAcc.span += f.span;
+        poseAcc.sp += (f.speedRef !== undefined ? f.speedRef : f.head);
+        poseAcc.n++;
       }
       if (now - phaseT > 3200) {
         if (poseAcc.n > 8) {
           neutral = { hand: poseAcc.hand / poseAcc.n,
                       head: poseAcc.head / poseAcc.n,
-                      span: poseAcc.span / poseAcc.n };
+                      span: poseAcc.span / poseAcc.n,
+                      speedRef: poseAcc.sp / poseAcc.n };
           sm.roll = 0; sm.pitch = 0; sm.thr = 0.5;
           setPhase('on', '준비 완료! 몸으로 조종해 보세요');
         } else {
@@ -217,7 +237,7 @@ var Vision = (function () {
 
     /* 화면 대부분이 사람으로 잡히면 배경이 어긋난 것 — 스스로 다시 찍는다
        (조명을 켰거나 카메라를 옮겼을 때 선생님이 손대지 않아도 회복되도록) */
-    if ((phase === 'on' || phase === 'lost') && fgRatio > 0.72) {
+    if (!usingPose && !ready && (phase === 'on' || phase === 'lost') && fgRatio > 0.72) {
       if (!floodT) floodT = now;
       else if (now - floodT > 3000) {
         captureBackground();
@@ -395,6 +415,53 @@ var Vision = (function () {
    *  사람으로 보도록 바꿨습니다.
    * ------------------------------------------------------------------- */
 
+  /* -------------------------------------------------- 관절 → 조종 특징
+   *  MediaPipe 는 손목·어깨·코의 자리를 바로 알려 줍니다.
+   *  아래 값들은 실루엣 방식과 똑같은 형태로 맞춰 두었기 때문에,
+   *  보정·조종 계산은 하나도 바꾸지 않고 그대로 씁니다.
+   * ------------------------------------------------------------------- */
+  function featuresFromPose(L) {
+    var J = Pose.JOINTS;
+    if (!Pose.seen(L, J.LWR) || !Pose.seen(L, J.RWR)) return null;
+    if (!Pose.seen(L, J.LSH) || !Pose.seen(L, J.RSH)) return null;
+
+    /* 화면은 거울처럼 뒤집어 보여 주므로 x 도 뒤집는다.
+       그러면 아이의 오른손이 화면 오른쪽에 옵니다. */
+    function X(i) { return (1 - L[i].x) * W; }
+    function Y(i) { return L[i].y * H; }
+
+    var lwx = X(J.LWR), lwy = Y(J.LWR);      /* 아이의 왼손  → 화면 왼쪽 */
+    var rwx = X(J.RWR), rwy = Y(J.RWR);      /* 아이의 오른손 → 화면 오른쪽 */
+    /* 고도는 '어깨 대비 손 높이'로 잽니다. 어깨는 팔과 함께 움직이므로
+       아이가 앉거나 서도 고도가 흔들리지 않습니다.
+       속도는 따로 '머리가 화면에서 얼마나 높은가'로 잽니다. */
+    var shoulder = (Y(J.LSH) + Y(J.RSH)) * 0.5;
+    var nose = Pose.seen(L, J.NOSE) ? Y(J.NOSE) : shoulder - H * 0.08;
+
+    /* 크기 기준은 두 손 사이 거리 — 아이가 앞뒤로 움직여도 함께 변하므로 안정적 */
+    var span = Math.hypot(rwx - lwx, rwy - lwy);
+    if (span < W * 0.08) return null;        /* 두 손이 붙어 있으면 조종하지 않는다 */
+
+    var raw = { bs: lwx, be: rwx, span: span, ly: lwy, ry: rwy,
+                hand: (lwy + rwy) * 0.5, head: shoulder, speedRef: nose,
+                area: span * span };
+
+    if (!sf) sf = { bs: raw.bs, be: raw.be, ly: raw.ly, ry: raw.ry,
+                    head: raw.head, sp: raw.speedRef };
+    else {
+      var k = 0.5;
+      sf.bs += (raw.bs - sf.bs) * k;  sf.be += (raw.be - sf.be) * k;
+      sf.ly += (raw.ly - sf.ly) * k;  sf.ry += (raw.ry - sf.ry) * k;
+      sf.head += (raw.head - sf.head) * k;
+      sf.sp = (sf.sp === undefined) ? raw.speedRef : sf.sp + (raw.speedRef - sf.sp) * k;
+    }
+    raw.bs = sf.bs; raw.be = sf.be; raw.ly = sf.ly; raw.ry = sf.ry; raw.head = sf.head;
+    raw.speedRef = sf.sp;
+    raw.hand = (sf.ly + sf.ry) * 0.5;
+    raw.span = Math.hypot(sf.be - sf.bs, sf.ry - sf.ly);
+    return raw;
+  }
+
   /* 이어진 덩어리들을 찾아 가장 사람다운 것 하나를 고른다 */
   function pickBlob() {
     label.fill(0);
@@ -533,7 +600,9 @@ var Vision = (function () {
     var pitch = clamp((base - now) * 3.6, -1, 1);
 
     /* 속도 : 머리가 화면에서 얼마나 높은가 (가까이 오거나 키를 키우면 빠르게) */
-    var thr = clamp(0.5 + (neutral.head - f.head) / (H * 0.34), 0, 1);
+    var sref  = (f.speedRef !== undefined) ? f.speedRef : f.head;
+    var sref0 = (neutral.speedRef !== undefined) ? neutral.speedRef : neutral.head;
+    var thr = clamp(0.5 + (sref0 - sref) / (H * 0.34), 0, 1);
 
     sm.roll  += (dead(roll,  0.12) - sm.roll)  * 0.30;
     sm.pitch += (dead(pitch, 0.12) - sm.pitch) * 0.26;
@@ -563,6 +632,9 @@ var Vision = (function () {
     if (phase === 'pose') return { level: 'wait', text: '팔 벌리고 살짝 흔들기!' };
     if (fgRatio < 0.012)  return { level: 'low',  text: '사람이 잘 안 보여요 → 민감도 ▲' };
     if (fgRatio > 0.45)   return { level: 'high', text: '배경까지 잡혀요 → 🖼 배경 다시' };
+    if (usingPose)        return { level: 'ok',   text: '자세 인식 중 (정확)' };
+    if (typeof Pose !== 'undefined' && Pose.isLoading() && !feat)
+                          return { level: 'wait', text: '자세 인식 준비 중…' };
     if (!feat && motionLevel < 0.004)
                           return { level: 'low',  text: '조금 움직여 보세요' };
     if (!feat)            return { level: 'low',  text: '몸 전체가 보이게 서 주세요' };
@@ -587,7 +659,9 @@ var Vision = (function () {
     pctx.drawImage(cap, 0, 0, cw, ch);
 
     /* ② 사람으로 잡힌 부분만 살짝 초록으로 덧칠 */
-    if (showMask) {
+    /* 자세 인식 중이면 뼈대를 그린다 (덩어리 색칠은 필요 없습니다) */
+    if (usingPose && poseLm) { drawSkeleton(poseLm, cw, ch); }
+    else if (showMask) {
       var d = mimg.data, i, p;
       for (i = 0, p = 0; i < NPX; i++, p += 4) {
         if (!mask[i]) { d[p + 3] = 0; }
@@ -638,6 +712,34 @@ var Vision = (function () {
     pctx.fillText(phase === 'on' || phase === 'lost' ? q.text : (msg || q.text), cw / 2, ch - 5);
   }
 
+  /* 어깨 → 팔꿈치 → 손목, 그리고 머리 */
+  function drawSkeleton(L, cw, ch) {
+    var J = Pose.JOINTS;
+    function px(i) { return { x: (1 - L[i].x) * cw, y: L[i].y * ch, ok: Pose.seen(L, i) }; }
+    var bone = [[J.LSH, J.RSH], [J.LSH, J.LEL], [J.LEL, J.LWR],
+                [J.RSH, J.REL], [J.REL, J.RWR]];
+    pctx.lineWidth = 3; pctx.lineCap = 'round';
+    pctx.strokeStyle = 'rgba(255,255,255,0.85)';
+    bone.forEach(function (b) {
+      var a = px(b[0]), c = px(b[1]);
+      if (!a.ok || !c.ok) return;
+      pctx.beginPath(); pctx.moveTo(a.x, a.y); pctx.lineTo(c.x, c.y); pctx.stroke();
+    });
+    /* 두 손을 잇는 '핸들' 선 */
+    var lw = px(J.LWR), rw = px(J.RWR);
+    if (lw.ok && rw.ok) {
+      pctx.strokeStyle = '#ffd23f'; pctx.lineWidth = 4;
+      pctx.beginPath(); pctx.moveTo(lw.x, lw.y); pctx.lineTo(rw.x, rw.y); pctx.stroke();
+      pctx.fillStyle = '#ffd23f';
+      [lw, rw].forEach(function (h) {
+        pctx.beginPath(); pctx.arc(h.x, h.y, 5, 0, 6.284); pctx.fill();
+      });
+    }
+    var n = px(J.NOSE);
+    if (n.ok) { pctx.fillStyle = '#ff5fd0';
+      pctx.beginPath(); pctx.arc(n.x, n.y, 5.5, 0, 6.284); pctx.fill(); }
+  }
+
   function arrow(ctx, x, y, dx, dy, lit) {
     var s = 9;
     ctx.save();
@@ -672,6 +774,12 @@ var Vision = (function () {
     threshold: function () { return Math.round(autoTh); },
     coverage: function () { return fgRatio; },
     blobShare: function () { return blobShare; },
+    usingPose: function () { return usingPose; },
+    engine: function () {
+      if (usingPose) return 'pose';
+      if (typeof Pose !== 'undefined' && Pose.isLoading()) return 'loading';
+      return 'silhouette';
+    },
     motionLevel: function () { return motionLevel; },
     blobMotion: function () { return bestMoved; },
     blobCount: function () { return blobCount; },
@@ -688,6 +796,14 @@ var Vision = (function () {
       feat = extract();
       if (feat && neutral) control(feat);
       return feat;
+    },
+    /* 확인용 — 관절 좌표를 직접 넣어 조종 신호를 확인합니다 */
+    __feedPose: function (L) {
+      poseLm = L;
+      var f = featuresFromPose(L);
+      usingPose = !!f;
+      if (f) { feat = f; if (neutral) control(f); }
+      return f;
     },
     __setNeutral: function (n) { neutral = n; sm.roll = 0; sm.pitch = 0; sm.thr = 0.5; },
     __size: [W, H]

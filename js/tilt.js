@@ -11,6 +11,13 @@
  *    자세가 틀어지면 '가운데' 버튼을 한 번 누르면 다시 맞춰집니다.
  *
  *  화면을 가로로 돌려도 되도록 화면 회전 각도를 함께 봅니다.
+ *
+ *  ★ 왜 '중력 방향'을 쓰나
+ *    기기가 알려 주는 기울기 각(beta·gamma)은 태블릿을 세워서 잡으면
+ *    값이 튀어 버립니다(짐벌락). 그런데 핸들처럼 잡으려면 세워서 잡게 되니,
+ *    제대로 잡을수록 조종이 안 되는 셈이었습니다.
+ *    그래서 각도 대신 '중력이 어느 쪽인지'를 직접 재서 씁니다.
+ *    이 방식은 눕히든 세우든 값이 튀지 않습니다.
  * ========================================================================= */
 'use strict';
 
@@ -18,8 +25,9 @@ var Tilt = (function () {
 
   var phase = 'off';        /* off | asking | calib | on | error */
   var msg = '', onChange = null;
-  var beta0 = null, gamma0 = null;
-  var raw = { beta: 0, gamma: 0 };
+  var roll0 = null, pitch0 = null;
+  var g = { x: 0, y: -1, z: 0 };        /* 중력 방향 (기기 기준) */
+  var haveG = false;
   var cur = { roll: 0, pitch: 0 };      /* 중립에서 몇 도 기울었나 */
   var sm  = { roll: 0, pitch: 0 };
   var out = { roll: 0, pitch: 0 };
@@ -51,9 +59,10 @@ var Tilt = (function () {
     }
 
     /* 아이폰·아이패드는 허락을 받아야 합니다 (버튼을 누른 그 순간에만 물어볼 수 있어요) */
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+    var MotionEvt = (typeof DeviceMotionEvent !== 'undefined') ? DeviceMotionEvent : null;
+    if (MotionEvt && typeof MotionEvt.requestPermission === 'function') {
       setPhase('asking', '기울기 센서 사용을 허락해 주세요…');
-      return DeviceOrientationEvent.requestPermission().then(function (state) {
+      return MotionEvt.requestPermission().then(function (state) {
         if (state !== 'granted') return fail('기울기 센서 사용이 허락되지 않았어요.');
         attach(); return true;
       }).catch(function () {
@@ -67,8 +76,10 @@ var Tilt = (function () {
   function attach() {
     haveEvent = false;
     startedAt = performance.now();
-    handler = onEvent;
-    window.addEventListener('deviceorientation', handler);
+    handler = onMotion;
+    window.addEventListener('devicemotion', handler);
+    /* devicemotion 이 없는 기기를 위한 예비 */
+    window.addEventListener('deviceorientation', onOrient);
     setPhase('calib', '기기를 편한 자세로 잡아 주세요…');
 
     clearTimeout(calibTimer);
@@ -92,22 +103,42 @@ var Tilt = (function () {
   function fail(m) { setPhase('error', m); return Promise.resolve(false); }
 
   function stop() {
-    if (handler) window.removeEventListener('deviceorientation', handler);
-    handler = null;
+    if (handler) window.removeEventListener('devicemotion', handler);
+    window.removeEventListener('deviceorientation', onOrient);
+    handler = null; haveG = false;
     clearTimeout(watchdog); clearTimeout(calibTimer);
-    beta0 = gamma0 = null;
+    roll0 = pitch0 = null;
     sm.roll = 0; sm.pitch = 0; out.roll = 0; out.pitch = 0;
     setPhase('off', '');
   }
 
   /* ------------------------------------------------------------- 센서 읽기 */
 
-  function onEvent(e) {
-    if (e.beta === null && e.gamma === null) return;   /* 값이 없는 기기 */
+  /* 중력 방향을 그대로 받는다 (가장 확실한 방법) */
+  function onMotion(e) {
+    var a = e.accelerationIncludingGravity;
+    if (!a || (a.x === null && a.y === null && a.z === null)) return;
+    haveEvent = true; haveG = true;
+    /* 손 떨림을 눌러 주는 저역 통과 */
+    var k = 0.22;
+    g.x += ((a.x || 0) - g.x) * k;
+    g.y += ((a.y || 0) - g.y) * k;
+    g.z += ((a.z || 0) - g.z) * k;
+    if (roll0 === null) return;
+    compute();
+    draw();
+  }
+
+  /* devicemotion 이 없는 기기에서만 쓰는 예비 — 각도에서 중력 방향을 되돌린다 */
+  function onOrient(e) {
+    if (haveG) return;
+    if (e.beta === null && e.gamma === null) return;
     haveEvent = true;
-    raw.beta  = e.beta  || 0;
-    raw.gamma = e.gamma || 0;
-    if (beta0 === null) return;                        /* 아직 중립을 안 잡음 */
+    var b = (e.beta || 0) * Math.PI / 180, c = (e.gamma || 0) * Math.PI / 180;
+    g.x = -Math.sin(c);
+    g.y =  Math.sin(b) * Math.cos(c);
+    g.z = -Math.cos(b) * Math.cos(c);
+    if (roll0 === null) return;
     compute();
     draw();
   }
@@ -132,15 +163,9 @@ var Tilt = (function () {
   }
 
   function compute() {
-    var b = wrapDeg(raw.beta - beta0);
-    var g = wrapDeg(raw.gamma - gamma0);
-    var a = screenAngle(), r, p;
-
-    if      (a === 90)  { r = -b; p =  g; }
-    else if (a === 180) { r = -g; p = -b; }
-    else if (a === 270) { r =  b; p = -g; }
-    else                { r =  g; p =  b; }
-
+    var A = angles();
+    var r = wrapDeg(A.roll  - roll0);
+    var p = wrapDeg(A.pitch - pitch0);
     if (flipR) r = -r;
     if (flipP) p = -p;
     cur.roll = r; cur.pitch = p;
@@ -149,6 +174,28 @@ var Tilt = (function () {
     sm.pitch += (curve(p) - sm.pitch) * 0.35;
     out.roll = sm.roll;
     out.pitch = sm.pitch;
+  }
+
+  /* 중력 방향에서 두 각도를 뽑는다.
+   *
+   *  · 좌우(roll)   = 화면 면 안에서 중력이 가리키는 방향.
+   *    핸들처럼 돌리면 이 값이 그대로 따라 돕니다.
+   *  · 위아래(pitch) = 중력이 화면 밖으로 얼마나 벗어났나.
+   *    위쪽을 앞뒤로 눕히면 이 값이 바뀝니다.
+   *
+   *  화면을 가로로 돌리면 화면의 좌우·위아래 축도 함께 돌아가므로
+   *  중력을 그 각도만큼 되돌려 놓고 잽니다.
+   */
+  function angles() {
+    var D = 180 / Math.PI;
+    var a = screenAngle() * Math.PI / 180;
+    var c = Math.cos(a), s2 = Math.sin(a);
+    var sx =  g.x * c - g.y * s2;      /* 화면 오른쪽 방향 성분 */
+    var sy =  g.x * s2 + g.y * c;      /* 화면 위쪽 방향 성분 */
+    return {
+      roll:  Math.atan2(sx, -sy) * D,
+      pitch: Math.atan2(-g.z, Math.hypot(sx, sy)) * D
+    };
   }
 
   /* 각도 → −1 ~ +1. 조금 흔들리는 건 무시하고, 많이 기울일수록 커집니다 */
@@ -161,7 +208,8 @@ var Tilt = (function () {
   }
 
   function recenter() {
-    beta0 = raw.beta; gamma0 = raw.gamma;
+    var A = angles();
+    roll0 = A.roll; pitch0 = A.pitch;
     sm.roll = 0; sm.pitch = 0; out.roll = 0; out.pitch = 0;
   }
 
@@ -231,14 +279,16 @@ var Tilt = (function () {
     out: out,
 
     /* 확인용 — 실제 기기 없이 센서 값을 넣어 볼 수 있습니다 */
-    __feed: function (beta, gamma) {
-      raw.beta = beta; raw.gamma = gamma;
-      if (beta0 === null) { recenter(); return out; }
+    /* 확인용 — 중력 방향을 직접 넣습니다 (기기 기준 x, y, z) */
+    __feed: function (gx, gy, gz) {
+      var n = Math.hypot(gx, gy, gz) || 1;
+      g.x = gx / n; g.y = gy / n; g.z = gz / n;
+      if (roll0 === null) { recenter(); return out; }
       compute();
       return out;
     },
     __setAngle: function (a) { forcedAngle = a; },
-    __reset: function () { beta0 = null; gamma0 = null; sm.roll = 0; sm.pitch = 0; },
+    __reset: function () { roll0 = null; pitch0 = null; sm.roll = 0; sm.pitch = 0; haveG = true; },
     __recenter: recenter
   };
 })();
