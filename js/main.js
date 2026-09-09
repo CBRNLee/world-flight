@@ -90,7 +90,17 @@ var Sound = (function () {
     netCodeTag:document.getElementById('netCodeTag'),
     netName:   document.getElementById('netName'),
     netCode:   document.getElementById('netCode'),
-    netNote:   document.getElementById('netNote')
+    netNote:   document.getElementById('netNote'),
+    btnTilt:   document.getElementById('btnTilt'),
+    tiltHelp:  document.getElementById('tiltHelp'),
+    tiltPanel: document.getElementById('tiltPanel'),
+    tiltView:  document.getElementById('tiltView'),
+    tiltNote:  document.getElementById('tiltNote'),
+    thrBar:    document.getElementById('throttleBar'),
+    thrTrack:  document.querySelector('#throttleBar .tb-track'),
+    thrFill:   document.querySelector('#throttleBar .tb-fill'),
+    thrKnob:   document.querySelector('#throttleBar .tb-knob'),
+    thrVal:    document.querySelector('#throttleBar .tb-val')
   };
 
   /* ---------------------------------------------------------- 화면 크기 */
@@ -100,9 +110,14 @@ var Sound = (function () {
     if (w * h * dpr * dpr > 4.2e6) dpr = Math.sqrt(4.2e6 / (w * h));   /* 성능 보호 */
     R.resize(w, h, dpr);
     /* 카메라 미리보기는 계기판 바로 위에 (방향 버튼·계기와 겹치지 않게) */
-    var pb = (Cockpit.panelHeight(w, h) + 10) + 'px';
+    var panelH = Cockpit.panelHeight(w, h);
+    var pb = (panelH + 10) + 'px';
     el.camPanel.style.bottom = pb;
+    el.tiltPanel.style.bottom = pb;
     el.netPanel.style.bottom = pb;
+    /* 출력 막대는 창문 영역 오른쪽에 세로로 */
+    el.thrBar.style.bottom = (panelH + 14) + 'px';
+    el.thrBar.style.height = Math.round(Math.min(280, (h - panelH) * 0.62)) + 'px';
   }
   window.addEventListener('resize', resize);
 
@@ -307,9 +322,84 @@ var Sound = (function () {
     });
   }
 
+  /* --------------------------------------------- 태블릿 기울여 조종 */
+  function onTiltPhase(phase, m) {
+    var on = (phase !== 'off' && phase !== 'error');
+    el.tiltPanel.classList.toggle('show', on);
+    el.btnTilt.classList.toggle('on', phase === 'on');
+    el.tiltNote.textContent = m || '';
+    document.body.classList.toggle('tilt-on', phase === 'on');
+    if (phase === 'on') {
+      el.tiltHelp.classList.remove('show');
+      showThrottleBar(true);
+      if (autopilot) toggleAuto();
+    }
+  }
+
+  function openTilt() {
+    if (Tilt.isRunning()) { el.tiltPanel.classList.toggle('show'); return; }
+    el.tiltHelp.classList.add('show');
+  }
+
+  function bindTilt() {
+    el.btnTilt.addEventListener('click', openTilt);
+    document.getElementById('tiltStart').addEventListener('click', function () {
+      el.tiltNote.textContent = '켜는 중…';
+      Tilt.start(el.tiltView, onTiltPhase);
+    });
+    document.getElementById('tiltCenter').addEventListener('click', Tilt.recenter);
+    document.getElementById('tiltOff').addEventListener('click', function () {
+      Tilt.stop(); onTiltPhase('off', '');
+    });
+    document.getElementById('tiltFlipR').addEventListener('click', function () {
+      this.classList.toggle('on', Tilt.flipRoll());
+    });
+    document.getElementById('tiltFlipP').addEventListener('click', function () {
+      this.classList.toggle('on', Tilt.flipPitch());
+    });
+    document.getElementById('tiltSens').addEventListener('input', function () {
+      Tilt.setSensitivity(parseInt(this.value, 10));
+    });
+  }
+
+  /* ------------------------------------------------ 오른쪽 출력 막대 */
+  function showThrottleBar(on) {
+    el.thrBar.classList.toggle('show', on);
+    document.body.classList.toggle('has-throttle', on);
+    if (on && Input.getThrottle() === null) setThrottleUI(plane.throttle);
+  }
+
+  function setThrottleUI(v) {
+    v = Engine3D.clamp(v, 0, 1);
+    Input.setThrottle(v);
+    el.thrFill.style.height = (v * 100) + '%';
+    el.thrKnob.style.bottom = 'calc(' + (v * 100) + '% - 8px)';
+    el.thrVal.textContent = Math.round(v * 100) + '%';
+  }
+
+  function bindThrottle() {
+    var dragging = false;
+    function fromEvent(e) {
+      var r = el.thrTrack.getBoundingClientRect();
+      setThrottleUI(1 - (e.clientY - r.top) / r.height);
+    }
+    el.thrTrack.addEventListener('pointerdown', function (e) {
+      dragging = true; el.thrTrack.setPointerCapture(e.pointerId); fromEvent(e);
+      e.preventDefault();
+    });
+    el.thrTrack.addEventListener('pointermove', function (e) { if (dragging) fromEvent(e); });
+    function end() { dragging = false; }
+    el.thrTrack.addEventListener('pointerup', end);
+    el.thrTrack.addEventListener('pointercancel', end);
+    /* 손가락으로 쓰는 기기에서는 늘 보이게 */
+    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) showThrottleBar(true);
+  }
+
   function bind() {
     bindCamera();
     bindNet();
+    bindTilt();
+    bindThrottle();
     document.getElementById('btnDest').addEventListener('click', function () { setDest(destIdx + 1); });
     el.btnAuto.addEventListener('click', toggleAuto);
     el.btnSound.addEventListener('click', toggleSound);
@@ -410,6 +500,7 @@ var Sound = (function () {
       lowAlt:   plane.pos[1] < 200 && (t % 700 < 420),
       sound:    Sound.isOn(),
       camera:   Vision.isActive(),
+      tilt:     Tilt.isActive(),
       friends:  Net.isOn() ? Net.count() : -1,
       overCity: overCity
     });
@@ -466,6 +557,7 @@ var Sound = (function () {
     if (action === 'passport')  { updateStamps(); el.passport.classList.toggle('show'); }
     if (action === 'camera')    openCam();
     if (action === 'friends')   openNet();
+    if (action === 'tilt')      openTilt();
   });
   bind();
   updateStamps();

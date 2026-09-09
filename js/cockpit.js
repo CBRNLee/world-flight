@@ -353,6 +353,7 @@ var Cockpit = (function () {
       ['저고도',   s.lowAlt,    '#fbbf24'],
       ['소리',     s.sound,     '#60a5fa']
     ];
+    if (s.tilt) items.splice(1, 0, ['기울기', true, '#f0a5c0']);
     if (s.friends >= 0) items.splice(1, 0, ['친구 ' + s.friends, true, '#34d399']);
     ctx.save();
     ctx.font = '700 12px "Apple SD Gothic Neo", sans-serif';

@@ -101,11 +101,37 @@ html, body {
   border-radius: 15px; cursor: pointer;
 }
 #touch button.on { background: #2f9e63; }
-.tthr { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.tthr span { font-size: 11px; opacity: .7; }
+/* ------------------------------------------------------- 오른쪽 출력 막대 */
+#throttleBar {
+  position: fixed; right: 12px; z-index: 27;
+  display: none; flex-direction: column; align-items: center; gap: 8px;
+  width: 62px; padding: 10px 8px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 18px; backdrop-filter: blur(8px);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .45);
+  touch-action: none; user-select: none;
+}
+#throttleBar.show { display: flex; }
+.tb-label { font-size: 11px; opacity: .7; }
+.tb-val { font-size: 13px; font-weight: 800; color: #7fe0a8; font-variant-numeric: tabular-nums; }
+.tb-track {
+  position: relative; width: 34px; flex: 1; min-height: 90px;
+  background: rgba(0, 0, 0, .5); border: 1px solid var(--line);
+  border-radius: 17px; overflow: hidden; cursor: ns-resize;
+}
+.tb-fill {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 55%;
+  background: linear-gradient(180deg, #ffb020, #3ddc84);
+}
+.tb-knob {
+  position: absolute; left: -5px; right: -5px; height: 16px; bottom: calc(55% - 8px);
+  background: #e8ecf1; border: 1px solid #7b828a; border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .4);
+}
 
 /* 터치가 되는 기기에서만 보이게 */
 @media (pointer: coarse) { #touch { display: flex; } }
+body.tilt-on #touch { display: none; }
 
 /* ------------------------------------------------------- 카메라 미리보기 */
 #camPanel {
@@ -129,6 +155,17 @@ html, body {
             white-space: nowrap; }
 .cam-sens input { flex: 1; accent-color: var(--hi); }
 
+/* ------------------------------------------------------- 기울기 조종 패널 */
+#tiltPanel {
+  position: fixed; left: 12px; bottom: 12px; z-index: 26;   /* bottom 은 main.js 가 조정 */
+  display: none; flex-direction: column; gap: 7px; width: 184px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 16px; padding: 9px; backdrop-filter: blur(8px);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .45);
+}
+#tiltPanel.show { display: flex; }
+#tiltView { width: 100%; border-radius: 10px; background: #0e131a; display: block; }
+
 /* ------------------------------------------------------- 함께 하기 패널 */
 #netPanel {
   position: fixed; right: 12px; bottom: 12px; z-index: 26;   /* bottom 은 main.js 가 조정 */
@@ -138,6 +175,7 @@ html, body {
   box-shadow: 0 8px 26px rgba(0, 0, 0, .45);
 }
 #netPanel.show { display: flex; }
+body.has-throttle #netPanel { right: 86px; }
 .net-head { display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; }
 .net-head span {
   font-family: ui-monospace, Menlo, monospace; font-size: 16px; font-weight: 800;
@@ -329,6 +367,7 @@ kbd {
   <div id="tools">
     <button class="hbtn" id="btnDest">🎯 도시 바꾸기</button>
     <button class="hbtn" id="btnAuto">🤖 자동조종</button>
+    <button class="hbtn" id="btnTilt">📱 기울여 조종</button>
     <button class="hbtn" id="btnCam">🎥 몸으로 조종</button>
     <button class="hbtn" id="btnNet">🌐 함께 하기</button>
     <button class="hbtn" id="btnSound">🔊 소리</button>
@@ -352,6 +391,21 @@ kbd {
   </label>
 </div>
 
+<!-- ===================== 기울기 조종 패널 ===================== -->
+<div id="tiltPanel">
+  <canvas id="tiltView" width="184" height="104"></canvas>
+  <div class="cam-row">
+    <button id="tiltCenter" title="지금 잡은 자세를 가운데로">🎯 가운데</button>
+    <button id="tiltFlipR" title="좌우가 반대면">↔ 좌우</button>
+    <button id="tiltFlipP" title="위아래가 반대면">↕ 위아래</button>
+    <button id="tiltOff">끄기</button>
+  </div>
+  <label class="cam-sens">
+    감도
+    <input type="range" id="tiltSens" min="0" max="100" step="5" value="50" />
+  </label>
+</div>
+
 <!-- ===================== 함께 하는 친구 목록 ===================== -->
 <div id="netPanel">
   <div class="net-head"><b>🌐 함께 하기</b><span id="netCodeTag">----</span></div>
@@ -372,11 +426,13 @@ kbd {
     </div>
     <button data-k="down">▼</button>
   </div>
-  <div class="tthr">
-    <button data-k="thrUp">＋</button>
-    <span>출력</span>
-    <button data-k="thrDown">－</button>
-  </div>
+</div>
+
+<!-- ===================== 오른쪽 출력 막대 ===================== -->
+<div id="throttleBar">
+  <span class="tb-label">출력</span>
+  <div class="tb-track"><div class="tb-fill"></div><div class="tb-knob"></div></div>
+  <span class="tb-val">55%</span>
 </div>
 
 <!-- ===================== 여권 ===================== -->
@@ -403,6 +459,7 @@ kbd {
       <div><kbd>M</kbd><span>소리 켜기·끄기</span></div>
       <div><kbd>C</kbd><span>몸으로 조종하기(카메라)</span></div>
       <div><kbd>F</kbd><span>친구와 함께 날기</span></div>
+      <div><kbd>T</kbd><span>태블릿 기울여 조종</span></div>
       <div><span class="wide">창문을 마우스로 꾹 누른 채 움직여도 조종할 수 있어요.</span></div>
     </div>
     <button class="close" data-close="help">닫기</button>
@@ -475,6 +532,35 @@ kbd {
       <button class="close" data-close="netHelp">닫기</button>
     </div>
     <p class="tip" id="netNote"></p>
+  </div>
+</div>
+
+<!-- ===================== 기울기 조종 안내 ===================== -->
+<div class="modal" id="tiltHelp">
+  <div class="sheet">
+    <h2>📱 태블릿을 핸들처럼</h2>
+    <p class="sub">태블릿을 두 손으로 잡고 <b>핸들처럼 기울이면</b> 비행기가 따라 움직여요.
+      아이패드·안드로이드 태블릿, 휴대폰에서 됩니다.</p>
+
+    <div class="gesture">
+      <div><span>↔️</span><b>좌우로 기울이면</b> 그쪽으로 돌아요 <i>좌우</i></div>
+      <div><span>↕️</span><b>위아래로 기울이면</b> 올라가고 내려가요 <i>고도</i></div>
+      <div><span>🛑</span><b>가만히 들고 있으면</b> 수평 비행 <i>수평</i></div>
+      <div><span>🎚️</span>화면 <b>오른쪽 출력 막대</b>를 위아래로 밀어요 <i>속도</i></div>
+    </div>
+
+    <p class="sub" style="margin-top:14px">
+      켜면 <b>1초 뒤 지금 잡고 있는 자세를 '가운데'로 기억</b>합니다.
+      책상에 눕혀 두든 세워 들든, 편한 자세 그대로 쓰시면 됩니다.<br />
+      자세가 틀어지면 <b>🎯 가운데</b> 버튼을 한 번 누르세요.
+      반대로 움직이면 <b>↔ 좌우</b> · <b>↕ 위아래</b> 버튼으로 바꿀 수 있어요.
+    </p>
+
+    <div class="cam-actions">
+      <button id="tiltStart">📱 기울여 조종 켜기</button>
+      <button class="close" data-close="tiltHelp">닫기</button>
+    </div>
+    <p class="tip" id="tiltNote"></p>
   </div>
 </div>
 
@@ -1915,6 +2001,254 @@ var Vision = (function () {
 
 </script>
 <script>
+/* ===== js/tilt.js ===== */
+/* =========================================================================
+ *  tilt.js — 태블릿을 핸들처럼 기울여서 조종하기
+ *
+ *   · 좌우로 기울이면   → 비행기가 그쪽으로 돌아요
+ *   · 위아래로 기울이면 → 비행기가 올라가고 내려가요
+ *   · 가만히 들고 있으면 → 수평 비행
+ *   · 빠르기는 화면 오른쪽 '출력' 막대로
+ *
+ *  ★ 절대 각도가 아니라 '지금 잡고 있는 자세'를 중립으로 삼습니다.
+ *    책상에 눕혀 두든, 세워서 들든, 비스듬히 들든 편한 자세 그대로 쓰면 됩니다.
+ *    자세가 틀어지면 '가운데' 버튼을 한 번 누르면 다시 맞춰집니다.
+ *
+ *  화면을 가로로 돌려도 되도록 화면 회전 각도를 함께 봅니다.
+ * ========================================================================= */
+'use strict';
+
+var Tilt = (function () {
+
+  var phase = 'off';        /* off | asking | calib | on | error */
+  var msg = '', onChange = null;
+  var beta0 = null, gamma0 = null;
+  var raw = { beta: 0, gamma: 0 };
+  var cur = { roll: 0, pitch: 0 };      /* 중립에서 몇 도 기울었나 */
+  var sm  = { roll: 0, pitch: 0 };
+  var out = { roll: 0, pitch: 0 };
+  var rangeDeg = 22;                    /* 이만큼 기울이면 최대 */
+  var DEAD = 3;                         /* 이보다 작게 흔들리는 건 무시 */
+  var flipR = false, flipP = false;
+  var haveEvent = false, startedAt = 0;
+  var handler = null, watchdog = null, calibTimer = null;
+  var preview = null, pctx = null, lastDraw = 0;
+  var forcedAngle = null;               /* 확인용으로만 화면 회전을 흉내 냅니다 */
+
+  function setPhase(p, m) {
+    phase = p; msg = m || '';
+    if (onChange) onChange(phase, msg);
+  }
+
+  /* ------------------------------------------------------------- 켜고 끄기 */
+
+  function start(previewCanvas, cb) {
+    preview = previewCanvas || null;
+    pctx = preview ? preview.getContext('2d') : null;
+    onChange = cb || onChange;
+
+    if (typeof DeviceOrientationEvent === 'undefined') {
+      return fail('이 기기에는 기울기 센서가 없어요.');
+    }
+    if (!window.isSecureContext && location.protocol !== 'file:') {
+      return fail('기울기 센서는 https 주소에서만 쓸 수 있어요.');
+    }
+
+    /* 아이폰·아이패드는 허락을 받아야 합니다 (버튼을 누른 그 순간에만 물어볼 수 있어요) */
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      setPhase('asking', '기울기 센서 사용을 허락해 주세요…');
+      return DeviceOrientationEvent.requestPermission().then(function (state) {
+        if (state !== 'granted') return fail('기울기 센서 사용이 허락되지 않았어요.');
+        attach(); return true;
+      }).catch(function () {
+        return fail('기울기 센서를 켜지 못했어요.');
+      });
+    }
+    attach();
+    return Promise.resolve(true);
+  }
+
+  function attach() {
+    haveEvent = false;
+    startedAt = performance.now();
+    handler = onEvent;
+    window.addEventListener('deviceorientation', handler);
+    setPhase('calib', '기기를 편한 자세로 잡아 주세요…');
+
+    clearTimeout(calibTimer);
+    calibTimer = setTimeout(function () {
+      if (phase !== 'calib') return;
+      if (!haveEvent) return;
+      recenter();
+      setPhase('on', '');
+    }, 900);
+
+    /* 센서가 아예 없는 기기(대부분의 데스크톱)를 알아채기 */
+    clearTimeout(watchdog);
+    watchdog = setTimeout(function () {
+      if (!haveEvent && phase !== 'off') {
+        stop();
+        setPhase('error', '기울기 센서가 없는 기기예요. 화면 버튼으로 조종하세요.');
+      }
+    }, 2200);
+  }
+
+  function fail(m) { setPhase('error', m); return Promise.resolve(false); }
+
+  function stop() {
+    if (handler) window.removeEventListener('deviceorientation', handler);
+    handler = null;
+    clearTimeout(watchdog); clearTimeout(calibTimer);
+    beta0 = gamma0 = null;
+    sm.roll = 0; sm.pitch = 0; out.roll = 0; out.pitch = 0;
+    setPhase('off', '');
+  }
+
+  /* ------------------------------------------------------------- 센서 읽기 */
+
+  function onEvent(e) {
+    if (e.beta === null && e.gamma === null) return;   /* 값이 없는 기기 */
+    haveEvent = true;
+    raw.beta  = e.beta  || 0;
+    raw.gamma = e.gamma || 0;
+    if (beta0 === null) return;                        /* 아직 중립을 안 잡음 */
+    compute();
+    draw();
+  }
+
+  /* 화면을 가로로 돌리면 앞뒤·좌우가 서로 바뀝니다 */
+  function screenAngle() {
+    if (forcedAngle !== null) return forcedAngle;
+    var a = 0;
+    if (window.screen && window.screen.orientation && typeof window.screen.orientation.angle === 'number') {
+      a = window.screen.orientation.angle;
+    } else if (typeof window.orientation === 'number') {
+      a = window.orientation;
+    }
+    a = ((a % 360) + 360) % 360;
+    return (a >= 45 && a < 135) ? 90 : (a >= 135 && a < 225) ? 180 : (a >= 225 && a < 315) ? 270 : 0;
+  }
+
+  function wrapDeg(d) {
+    while (d > 180) d -= 360;
+    while (d < -180) d += 360;
+    return d;
+  }
+
+  function compute() {
+    var b = wrapDeg(raw.beta - beta0);
+    var g = wrapDeg(raw.gamma - gamma0);
+    var a = screenAngle(), r, p;
+
+    if      (a === 90)  { r = -b; p =  g; }
+    else if (a === 180) { r = -g; p = -b; }
+    else if (a === 270) { r =  b; p = -g; }
+    else                { r =  g; p =  b; }
+
+    if (flipR) r = -r;
+    if (flipP) p = -p;
+    cur.roll = r; cur.pitch = p;
+
+    sm.roll  += (curve(r) - sm.roll)  * 0.35;
+    sm.pitch += (curve(p) - sm.pitch) * 0.35;
+    out.roll = sm.roll;
+    out.pitch = sm.pitch;
+  }
+
+  /* 각도 → −1 ~ +1. 조금 흔들리는 건 무시하고, 많이 기울일수록 커집니다 */
+  function curve(deg) {
+    var s = deg < 0 ? -1 : 1, a = Math.abs(deg);
+    if (a <= DEAD) return 0;
+    var v = (a - DEAD) / (rangeDeg - DEAD);
+    if (v > 1) v = 1;
+    return s * v;
+  }
+
+  function recenter() {
+    beta0 = raw.beta; gamma0 = raw.gamma;
+    sm.roll = 0; sm.pitch = 0; out.roll = 0; out.pitch = 0;
+  }
+
+  /* ------------------------------------------------------------- 미리보기 */
+
+  function draw() {
+    if (!pctx) return;
+    var now = performance.now();
+    if (now - lastDraw < 33) return;
+    lastDraw = now;
+
+    var w = preview.width, h = preview.height;
+    var cx = w / 2, cy = h / 2;
+
+    pctx.clearRect(0, 0, w, h);
+    pctx.fillStyle = '#0e131a';
+    pctx.fillRect(0, 0, w, h);
+
+    /* 기울인 만큼 기울어지는 수평선 */
+    pctx.save();
+    pctx.beginPath(); pctx.rect(4, 4, w - 8, h - 8); pctx.clip();
+    pctx.translate(cx, cy);
+    pctx.rotate(-out.roll * 0.5);
+    var off = out.pitch * h * 0.30;
+    pctx.fillStyle = '#3d8fd6'; pctx.fillRect(-w, -h + off, w * 2, h);
+    pctx.fillStyle = '#8f6034'; pctx.fillRect(-w, off, w * 2, h);
+    pctx.strokeStyle = '#fff'; pctx.lineWidth = 2;
+    pctx.beginPath(); pctx.moveTo(-w, off); pctx.lineTo(w, off); pctx.stroke();
+    pctx.restore();
+
+    /* 가운데 고정 표식 */
+    pctx.strokeStyle = '#ffd23f'; pctx.lineWidth = 3; pctx.lineCap = 'round';
+    pctx.beginPath();
+    pctx.moveTo(cx - 22, cy); pctx.lineTo(cx - 7, cy);
+    pctx.moveTo(cx + 7, cy);  pctx.lineTo(cx + 22, cy);
+    pctx.moveTo(cx, cy - 6);  pctx.lineTo(cx, cy + 2);
+    pctx.stroke();
+
+    /* 지금 몇 도 기울었는지 */
+    pctx.fillStyle = 'rgba(0,0,0,0.6)';
+    pctx.fillRect(0, h - 16, w, 16);
+    pctx.fillStyle = phase === 'on' ? '#7fe0a8' : '#ffd23f';
+    pctx.font = '700 11px "Apple SD Gothic Neo", sans-serif';
+    pctx.textAlign = 'center';
+    pctx.fillText(phase === 'on'
+      ? ('좌우 ' + Math.round(cur.roll) + '°   위아래 ' + Math.round(cur.pitch) + '°')
+      : (msg || '준비 중…'), w / 2, h - 4);
+  }
+
+  /* ------------------------------------------------------------------ API */
+
+  return {
+    start: start,
+    stop: stop,
+    recenter: recenter,
+    isActive: function () { return phase === 'on'; },
+    isRunning: function () { return phase !== 'off' && phase !== 'error'; },
+    phase: function () { return phase; },
+    message: function () { return msg; },
+    /* 슬라이더 0(둔감) ~ 100(민감) → 최대 기울기 40° ~ 12° */
+    setSensitivity: function (v) { rangeDeg = 40 - (v / 100) * 28; },
+    flipRoll:  function (v) { flipR = v === undefined ? !flipR : !!v; return flipR; },
+    flipPitch: function (v) { flipP = v === undefined ? !flipP : !!v; return flipP; },
+    isFlipR: function () { return flipR; },
+    isFlipP: function () { return flipP; },
+    degrees: function () { return { roll: cur.roll, pitch: cur.pitch }; },
+    out: out,
+
+    /* 확인용 — 실제 기기 없이 센서 값을 넣어 볼 수 있습니다 */
+    __feed: function (beta, gamma) {
+      raw.beta = beta; raw.gamma = gamma;
+      if (beta0 === null) { recenter(); return out; }
+      compute();
+      return out;
+    },
+    __setAngle: function (a) { forcedAngle = a; },
+    __reset: function () { beta0 = null; gamma0 = null; sm.roll = 0; sm.pitch = 0; },
+    __recenter: recenter
+  };
+})();
+
+</script>
+<script>
 /* ===== js/world.js ===== */
 /* =========================================================================
  *  world.js — 세계(오픈월드) 만들기
@@ -3350,6 +3684,7 @@ var Cockpit = (function () {
       ['저고도',   s.lowAlt,    '#fbbf24'],
       ['소리',     s.sound,     '#60a5fa']
     ];
+    if (s.tilt) items.splice(1, 0, ['기울기', true, '#f0a5c0']);
     if (s.friends >= 0) items.splice(1, 0, ['친구 ' + s.friends, true, '#34d399']);
     ctx.save();
     ctx.font = '700 12px "Apple SD Gothic Neo", sans-serif';
@@ -3456,6 +3791,7 @@ var Input = (function () {
   var drag  = null;                       // 화면을 끌어서 조종할 때
   var cmd   = { pitch: 0, roll: 0, throttle: 0, throttleAbs: null, manual: false };
   var onAction = function () {};          // 스페이스/N 같은 단축키 알림
+  var throttleSet = null;                 // 오른쪽 출력 막대로 정한 값 (0~1)
 
   function init(canvas, actionHandler) {
     if (actionHandler) onAction = actionHandler;
@@ -3469,6 +3805,7 @@ var Input = (function () {
       if (e.code === 'KeyP')   { onAction('passport'); }
       if (e.code === 'KeyC')   { onAction('camera'); }
       if (e.code === 'KeyF')   { onAction('friends'); }
+      if (e.code === 'KeyT')   { onAction('tilt'); }
       if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].indexOf(e.code) >= 0) e.preventDefault();
     });
     window.addEventListener('keyup', function (e) { keys[e.code] = 0; });
@@ -3527,17 +3864,31 @@ var Input = (function () {
     cmd.manual   = (Math.abs(cmd.pitch) > 0.02 || Math.abs(cmd.roll) > 0.02 ||
                     Math.abs(cmd.throttle) > 0.02);
 
-    /* 카메라 신체 인식 — 손을 대고 있지 않은 축만 몸동작이 맡는다 */
+    /* 태블릿 기울기 — 손을 대고 있지 않은 축만 기울기가 맡는다 */
+    if (typeof Tilt !== 'undefined' && Tilt.isActive()) {
+      if (Math.abs(cmd.roll)  < 0.02) cmd.roll  = Tilt.out.roll;
+      if (Math.abs(cmd.pitch) < 0.02) cmd.pitch = Tilt.out.pitch;
+    }
+
+    /* 카메라 신체 인식 — 기울기나 손이 잡고 있지 않은 축만 */
     if (typeof Vision !== 'undefined' && Vision.isActive()) {
       var v = Vision.out;
       if (Math.abs(cmd.roll)  < 0.02) cmd.roll  = v.roll;
       if (Math.abs(cmd.pitch) < 0.02) cmd.pitch = v.pitch;
       if (Math.abs(cmd.throttle) < 0.02 && v.throttle !== null) cmd.throttleAbs = v.throttle;
     }
+
+    /* 오른쪽 출력 막대가 가장 우선 (직접 잡아 맞춘 값이므로) */
+    if (throttleSet !== null && Math.abs(cmd.throttle) < 0.02) cmd.throttleAbs = throttleSet;
+
     return cmd;
   }
 
-  return { init: init, poll: poll, cmd: cmd };
+  return {
+    init: init, poll: poll, cmd: cmd,
+    setThrottle: function (v) { throttleSet = v === null ? null : Engine3D.clamp(v, 0, 1); },
+    getThrottle: function () { return throttleSet; }
+  };
 })();
 
 </script>
@@ -3635,7 +3986,17 @@ var Sound = (function () {
     netCodeTag:document.getElementById('netCodeTag'),
     netName:   document.getElementById('netName'),
     netCode:   document.getElementById('netCode'),
-    netNote:   document.getElementById('netNote')
+    netNote:   document.getElementById('netNote'),
+    btnTilt:   document.getElementById('btnTilt'),
+    tiltHelp:  document.getElementById('tiltHelp'),
+    tiltPanel: document.getElementById('tiltPanel'),
+    tiltView:  document.getElementById('tiltView'),
+    tiltNote:  document.getElementById('tiltNote'),
+    thrBar:    document.getElementById('throttleBar'),
+    thrTrack:  document.querySelector('#throttleBar .tb-track'),
+    thrFill:   document.querySelector('#throttleBar .tb-fill'),
+    thrKnob:   document.querySelector('#throttleBar .tb-knob'),
+    thrVal:    document.querySelector('#throttleBar .tb-val')
   };
 
   /* ---------------------------------------------------------- 화면 크기 */
@@ -3645,9 +4006,14 @@ var Sound = (function () {
     if (w * h * dpr * dpr > 4.2e6) dpr = Math.sqrt(4.2e6 / (w * h));   /* 성능 보호 */
     R.resize(w, h, dpr);
     /* 카메라 미리보기는 계기판 바로 위에 (방향 버튼·계기와 겹치지 않게) */
-    var pb = (Cockpit.panelHeight(w, h) + 10) + 'px';
+    var panelH = Cockpit.panelHeight(w, h);
+    var pb = (panelH + 10) + 'px';
     el.camPanel.style.bottom = pb;
+    el.tiltPanel.style.bottom = pb;
     el.netPanel.style.bottom = pb;
+    /* 출력 막대는 창문 영역 오른쪽에 세로로 */
+    el.thrBar.style.bottom = (panelH + 14) + 'px';
+    el.thrBar.style.height = Math.round(Math.min(280, (h - panelH) * 0.62)) + 'px';
   }
   window.addEventListener('resize', resize);
 
@@ -3852,9 +4218,84 @@ var Sound = (function () {
     });
   }
 
+  /* --------------------------------------------- 태블릿 기울여 조종 */
+  function onTiltPhase(phase, m) {
+    var on = (phase !== 'off' && phase !== 'error');
+    el.tiltPanel.classList.toggle('show', on);
+    el.btnTilt.classList.toggle('on', phase === 'on');
+    el.tiltNote.textContent = m || '';
+    document.body.classList.toggle('tilt-on', phase === 'on');
+    if (phase === 'on') {
+      el.tiltHelp.classList.remove('show');
+      showThrottleBar(true);
+      if (autopilot) toggleAuto();
+    }
+  }
+
+  function openTilt() {
+    if (Tilt.isRunning()) { el.tiltPanel.classList.toggle('show'); return; }
+    el.tiltHelp.classList.add('show');
+  }
+
+  function bindTilt() {
+    el.btnTilt.addEventListener('click', openTilt);
+    document.getElementById('tiltStart').addEventListener('click', function () {
+      el.tiltNote.textContent = '켜는 중…';
+      Tilt.start(el.tiltView, onTiltPhase);
+    });
+    document.getElementById('tiltCenter').addEventListener('click', Tilt.recenter);
+    document.getElementById('tiltOff').addEventListener('click', function () {
+      Tilt.stop(); onTiltPhase('off', '');
+    });
+    document.getElementById('tiltFlipR').addEventListener('click', function () {
+      this.classList.toggle('on', Tilt.flipRoll());
+    });
+    document.getElementById('tiltFlipP').addEventListener('click', function () {
+      this.classList.toggle('on', Tilt.flipPitch());
+    });
+    document.getElementById('tiltSens').addEventListener('input', function () {
+      Tilt.setSensitivity(parseInt(this.value, 10));
+    });
+  }
+
+  /* ------------------------------------------------ 오른쪽 출력 막대 */
+  function showThrottleBar(on) {
+    el.thrBar.classList.toggle('show', on);
+    document.body.classList.toggle('has-throttle', on);
+    if (on && Input.getThrottle() === null) setThrottleUI(plane.throttle);
+  }
+
+  function setThrottleUI(v) {
+    v = Engine3D.clamp(v, 0, 1);
+    Input.setThrottle(v);
+    el.thrFill.style.height = (v * 100) + '%';
+    el.thrKnob.style.bottom = 'calc(' + (v * 100) + '% - 8px)';
+    el.thrVal.textContent = Math.round(v * 100) + '%';
+  }
+
+  function bindThrottle() {
+    var dragging = false;
+    function fromEvent(e) {
+      var r = el.thrTrack.getBoundingClientRect();
+      setThrottleUI(1 - (e.clientY - r.top) / r.height);
+    }
+    el.thrTrack.addEventListener('pointerdown', function (e) {
+      dragging = true; el.thrTrack.setPointerCapture(e.pointerId); fromEvent(e);
+      e.preventDefault();
+    });
+    el.thrTrack.addEventListener('pointermove', function (e) { if (dragging) fromEvent(e); });
+    function end() { dragging = false; }
+    el.thrTrack.addEventListener('pointerup', end);
+    el.thrTrack.addEventListener('pointercancel', end);
+    /* 손가락으로 쓰는 기기에서는 늘 보이게 */
+    if (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) showThrottleBar(true);
+  }
+
   function bind() {
     bindCamera();
     bindNet();
+    bindTilt();
+    bindThrottle();
     document.getElementById('btnDest').addEventListener('click', function () { setDest(destIdx + 1); });
     el.btnAuto.addEventListener('click', toggleAuto);
     el.btnSound.addEventListener('click', toggleSound);
@@ -3955,6 +4396,7 @@ var Sound = (function () {
       lowAlt:   plane.pos[1] < 200 && (t % 700 < 420),
       sound:    Sound.isOn(),
       camera:   Vision.isActive(),
+      tilt:     Tilt.isActive(),
       friends:  Net.isOn() ? Net.count() : -1,
       overCity: overCity
     });
@@ -4011,6 +4453,7 @@ var Sound = (function () {
     if (action === 'passport')  { updateStamps(); el.passport.classList.toggle('show'); }
     if (action === 'camera')    openCam();
     if (action === 'friends')   openNet();
+    if (action === 'tilt')      openTilt();
   });
   bind();
   updateStamps();

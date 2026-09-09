@@ -98,11 +98,37 @@ html, body {
   border-radius: 15px; cursor: pointer;
 }
 #touch button.on { background: #2f9e63; }
-.tthr { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.tthr span { font-size: 11px; opacity: .7; }
+/* ------------------------------------------------------- 오른쪽 출력 막대 */
+#throttleBar {
+  position: fixed; right: 12px; z-index: 27;
+  display: none; flex-direction: column; align-items: center; gap: 8px;
+  width: 62px; padding: 10px 8px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 18px; backdrop-filter: blur(8px);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .45);
+  touch-action: none; user-select: none;
+}
+#throttleBar.show { display: flex; }
+.tb-label { font-size: 11px; opacity: .7; }
+.tb-val { font-size: 13px; font-weight: 800; color: #7fe0a8; font-variant-numeric: tabular-nums; }
+.tb-track {
+  position: relative; width: 34px; flex: 1; min-height: 90px;
+  background: rgba(0, 0, 0, .5); border: 1px solid var(--line);
+  border-radius: 17px; overflow: hidden; cursor: ns-resize;
+}
+.tb-fill {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 55%;
+  background: linear-gradient(180deg, #ffb020, #3ddc84);
+}
+.tb-knob {
+  position: absolute; left: -5px; right: -5px; height: 16px; bottom: calc(55% - 8px);
+  background: #e8ecf1; border: 1px solid #7b828a; border-radius: 8px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .4);
+}
 
 /* 터치가 되는 기기에서만 보이게 */
 @media (pointer: coarse) { #touch { display: flex; } }
+body.tilt-on #touch { display: none; }
 
 /* ------------------------------------------------------- 카메라 미리보기 */
 #camPanel {
@@ -126,6 +152,17 @@ html, body {
             white-space: nowrap; }
 .cam-sens input { flex: 1; accent-color: var(--hi); }
 
+/* ------------------------------------------------------- 기울기 조종 패널 */
+#tiltPanel {
+  position: fixed; left: 12px; bottom: 12px; z-index: 26;   /* bottom 은 main.js 가 조정 */
+  display: none; flex-direction: column; gap: 7px; width: 184px;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 16px; padding: 9px; backdrop-filter: blur(8px);
+  box-shadow: 0 8px 26px rgba(0, 0, 0, .45);
+}
+#tiltPanel.show { display: flex; }
+#tiltView { width: 100%; border-radius: 10px; background: #0e131a; display: block; }
+
 /* ------------------------------------------------------- 함께 하기 패널 */
 #netPanel {
   position: fixed; right: 12px; bottom: 12px; z-index: 26;   /* bottom 은 main.js 가 조정 */
@@ -135,6 +172,7 @@ html, body {
   box-shadow: 0 8px 26px rgba(0, 0, 0, .45);
 }
 #netPanel.show { display: flex; }
+body.has-throttle #netPanel { right: 86px; }
 .net-head { display: flex; align-items: baseline; justify-content: space-between; font-size: 12px; }
 .net-head span {
   font-family: ui-monospace, Menlo, monospace; font-size: 16px; font-weight: 800;

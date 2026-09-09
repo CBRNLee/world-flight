@@ -13,6 +13,7 @@ var Input = (function () {
   var drag  = null;                       // 화면을 끌어서 조종할 때
   var cmd   = { pitch: 0, roll: 0, throttle: 0, throttleAbs: null, manual: false };
   var onAction = function () {};          // 스페이스/N 같은 단축키 알림
+  var throttleSet = null;                 // 오른쪽 출력 막대로 정한 값 (0~1)
 
   function init(canvas, actionHandler) {
     if (actionHandler) onAction = actionHandler;
@@ -26,6 +27,7 @@ var Input = (function () {
       if (e.code === 'KeyP')   { onAction('passport'); }
       if (e.code === 'KeyC')   { onAction('camera'); }
       if (e.code === 'KeyF')   { onAction('friends'); }
+      if (e.code === 'KeyT')   { onAction('tilt'); }
       if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].indexOf(e.code) >= 0) e.preventDefault();
     });
     window.addEventListener('keyup', function (e) { keys[e.code] = 0; });
@@ -84,15 +86,29 @@ var Input = (function () {
     cmd.manual   = (Math.abs(cmd.pitch) > 0.02 || Math.abs(cmd.roll) > 0.02 ||
                     Math.abs(cmd.throttle) > 0.02);
 
-    /* 카메라 신체 인식 — 손을 대고 있지 않은 축만 몸동작이 맡는다 */
+    /* 태블릿 기울기 — 손을 대고 있지 않은 축만 기울기가 맡는다 */
+    if (typeof Tilt !== 'undefined' && Tilt.isActive()) {
+      if (Math.abs(cmd.roll)  < 0.02) cmd.roll  = Tilt.out.roll;
+      if (Math.abs(cmd.pitch) < 0.02) cmd.pitch = Tilt.out.pitch;
+    }
+
+    /* 카메라 신체 인식 — 기울기나 손이 잡고 있지 않은 축만 */
     if (typeof Vision !== 'undefined' && Vision.isActive()) {
       var v = Vision.out;
       if (Math.abs(cmd.roll)  < 0.02) cmd.roll  = v.roll;
       if (Math.abs(cmd.pitch) < 0.02) cmd.pitch = v.pitch;
       if (Math.abs(cmd.throttle) < 0.02 && v.throttle !== null) cmd.throttleAbs = v.throttle;
     }
+
+    /* 오른쪽 출력 막대가 가장 우선 (직접 잡아 맞춘 값이므로) */
+    if (throttleSet !== null && Math.abs(cmd.throttle) < 0.02) cmd.throttleAbs = throttleSet;
+
     return cmd;
   }
 
-  return { init: init, poll: poll, cmd: cmd };
+  return {
+    init: init, poll: poll, cmd: cmd,
+    setThrottle: function (v) { throttleSet = v === null ? null : Engine3D.clamp(v, 0, 1); },
+    getThrottle: function () { return throttleSet; }
+  };
 })();

@@ -25,6 +25,7 @@
   <div id="tools">
     <button class="hbtn" id="btnDest">🎯 도시 바꾸기</button>
     <button class="hbtn" id="btnAuto">🤖 자동조종</button>
+    <button class="hbtn" id="btnTilt">📱 기울여 조종</button>
     <button class="hbtn" id="btnCam">🎥 몸으로 조종</button>
     <button class="hbtn" id="btnNet">🌐 함께 하기</button>
     <button class="hbtn" id="btnSound">🔊 소리</button>
@@ -48,6 +49,21 @@
   </label>
 </div>
 
+<!-- ===================== 기울기 조종 패널 ===================== -->
+<div id="tiltPanel">
+  <canvas id="tiltView" width="184" height="104"></canvas>
+  <div class="cam-row">
+    <button id="tiltCenter" title="지금 잡은 자세를 가운데로">🎯 가운데</button>
+    <button id="tiltFlipR" title="좌우가 반대면">↔ 좌우</button>
+    <button id="tiltFlipP" title="위아래가 반대면">↕ 위아래</button>
+    <button id="tiltOff">끄기</button>
+  </div>
+  <label class="cam-sens">
+    감도
+    <input type="range" id="tiltSens" min="0" max="100" step="5" value="50" />
+  </label>
+</div>
+
 <!-- ===================== 함께 하는 친구 목록 ===================== -->
 <div id="netPanel">
   <div class="net-head"><b>🌐 함께 하기</b><span id="netCodeTag">----</span></div>
@@ -68,11 +84,13 @@
     </div>
     <button data-k="down">▼</button>
   </div>
-  <div class="tthr">
-    <button data-k="thrUp">＋</button>
-    <span>출력</span>
-    <button data-k="thrDown">－</button>
-  </div>
+</div>
+
+<!-- ===================== 오른쪽 출력 막대 ===================== -->
+<div id="throttleBar">
+  <span class="tb-label">출력</span>
+  <div class="tb-track"><div class="tb-fill"></div><div class="tb-knob"></div></div>
+  <span class="tb-val">55%</span>
 </div>
 
 <!-- ===================== 여권 ===================== -->
@@ -99,6 +117,7 @@
       <div><kbd>M</kbd><span>소리 켜기·끄기</span></div>
       <div><kbd>C</kbd><span>몸으로 조종하기(카메라)</span></div>
       <div><kbd>F</kbd><span>친구와 함께 날기</span></div>
+      <div><kbd>T</kbd><span>태블릿 기울여 조종</span></div>
       <div><span class="wide">창문을 마우스로 꾹 누른 채 움직여도 조종할 수 있어요.</span></div>
     </div>
     <button class="close" data-close="help">닫기</button>
@@ -174,6 +193,35 @@
   </div>
 </div>
 
+<!-- ===================== 기울기 조종 안내 ===================== -->
+<div class="modal" id="tiltHelp">
+  <div class="sheet">
+    <h2>📱 태블릿을 핸들처럼</h2>
+    <p class="sub">태블릿을 두 손으로 잡고 <b>핸들처럼 기울이면</b> 비행기가 따라 움직여요.
+      아이패드·안드로이드 태블릿, 휴대폰에서 됩니다.</p>
+
+    <div class="gesture">
+      <div><span>↔️</span><b>좌우로 기울이면</b> 그쪽으로 돌아요 <i>좌우</i></div>
+      <div><span>↕️</span><b>위아래로 기울이면</b> 올라가고 내려가요 <i>고도</i></div>
+      <div><span>🛑</span><b>가만히 들고 있으면</b> 수평 비행 <i>수평</i></div>
+      <div><span>🎚️</span>화면 <b>오른쪽 출력 막대</b>를 위아래로 밀어요 <i>속도</i></div>
+    </div>
+
+    <p class="sub" style="margin-top:14px">
+      켜면 <b>1초 뒤 지금 잡고 있는 자세를 '가운데'로 기억</b>합니다.
+      책상에 눕혀 두든 세워 들든, 편한 자세 그대로 쓰시면 됩니다.<br />
+      자세가 틀어지면 <b>🎯 가운데</b> 버튼을 한 번 누르세요.
+      반대로 움직이면 <b>↔ 좌우</b> · <b>↕ 위아래</b> 버튼으로 바꿀 수 있어요.
+    </p>
+
+    <div class="cam-actions">
+      <button id="tiltStart">📱 기울여 조종 켜기</button>
+      <button class="close" data-close="tiltHelp">닫기</button>
+    </div>
+    <p class="tip" id="tiltNote"></p>
+  </div>
+</div>
+
 <!-- ===================== 시작 화면 ===================== -->
 <div id="startScreen">
   <div class="start-card">
@@ -196,6 +244,7 @@
 <script src="js/mqtt-lite.js"></script>
 <script src="js/net.js"></script>
 <script src="js/vision.js"></script>
+<script src="js/tilt.js"></script>
 <script src="js/world.js"></script>
 <script src="js/aircraft.js"></script>
 <script src="js/cockpit.js"></script>
