@@ -165,7 +165,9 @@ var Tilt = (function () {
   function compute() {
     var A = angles();
     var r = wrapDeg(A.roll  - roll0);
-    var p = wrapDeg(A.pitch - pitch0);
+    /* 실제 아이패드에서 확인: 위쪽을 내 쪽으로 당기면(아래를 보면) 내려가고,
+       밀면(위로 기울이면) 올라가야 자연스럽다 → 부호를 뒤집는다 */
+    var p = -wrapDeg(A.pitch - pitch0);
     if (flipR) r = -r;
     if (flipP) p = -p;
     cur.roll = r; cur.pitch = p;
