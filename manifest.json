@@ -1,0 +1,16 @@
+{
+  "name": "세계 여행 비행기",
+  "short_name": "비행기",
+  "description": "조종석에 앉아 세계 여러 도시를 찾아가는 유치원 교통기관 놀이",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0b1016",
+  "theme_color": "#0b1016",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

@@ -568,6 +568,29 @@ var Sound = (function () {
                  state: function () { return { autopilot: autopilot, visited: visited,
                                                dest: dest().name, overCity: overCity }; } };
 
+  /* ------------------------------------------- 인터넷 없이 실행되게 저장 */
+  function toast(text, ms) {
+    var t = document.getElementById('toast');
+    if (!t) return;
+    t.textContent = text;
+    t.classList.add('show');
+    clearTimeout(toast.h);
+    toast.h = setTimeout(function () { t.classList.remove('show'); }, ms || 5000);
+  }
+  if ('serviceWorker' in navigator &&
+      (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.addEventListener('message', function (e) {
+      if (!e.data || e.data.type !== 'offline-ready') return;
+      toast(e.data.model
+        ? '✈️ 저장 완료! 이제 인터넷 없이도 할 수 있어요 (몸으로 조종 포함)'
+        : '✈️ 저장 완료! 이제 인터넷 없이도 할 수 있어요', 6000);
+    });
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () { /* 안 되는 곳이면 그냥 넘어감 */ });
+    });
+  }
+  window.addEventListener('offline', function () { toast('📴 인터넷이 끊겼어요. 저장해 둔 것으로 계속 놀 수 있어요'); });
+
   /* 시작 화면 뒤에서도 배경이 보이도록 한 장면 그려둔다 */
   try { render(0); } catch (e) { /* 창이 아직 자리를 못 잡았으면 다음 프레임에 */ }
 })();

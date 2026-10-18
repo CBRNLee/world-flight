@@ -5,6 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
 <title>세계 여행 비행기</title>
 <link rel="stylesheet" href="css/style.css" />
+<!-- 홈 화면에 앱처럼 설치하기 (인터넷 없이 실행) -->
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+<meta name="theme-color" content="#0b1016" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="비행기" />
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>%E2%9C%88%EF%B8%8F</text></svg>" />
 </head>
 <body>
@@ -70,6 +78,9 @@
   <div id="netList"></div>
   <button id="netLeave">나가기</button>
 </div>
+
+<!-- ===================== 짧은 알림 ===================== -->
+<div id="toast"></div>
 
 <!-- ===================== 도착 배너 ===================== -->
 <div id="cityBanner"></div>

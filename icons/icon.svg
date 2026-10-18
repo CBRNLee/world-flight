@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f7fd6"/><stop offset="0.62" stop-color="#8cc6ee"/><stop offset="1" stop-color="#d9eefa"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <rect y="410" width="512" height="102" fill="#1f6aa8"/>
+  <ellipse cx="154" cy="415" rx="102" ry="18" fill="#f0dca2"/>
+  <ellipse cx="154" cy="412" rx="82" ry="12" fill="#7fbf6a"/>
+  <g fill="#ffffff" opacity="0.95">
+    <circle cx="150" cy="150" r="46"/><circle cx="200" cy="138" r="58"/><circle cx="252" cy="152" r="42"/>
+    <circle cx="380" cy="225" r="30"/><circle cx="414" cy="214" r="38"/><circle cx="446" cy="228" r="28"/>
+  </g>
+  <g transform="translate(262 300) rotate(-35.5)">
+    <path d="M150 0 Q150 -17 120 -19 L26 -19 L-30 -118 L-62 -118 L-26 -19 L-108 -19 L-136 -58 L-158 -58 L-142 -14
+             L-142 14 L-158 58 L-136 58 L-108 19 L-26 19 L-62 118 L-30 118 L26 19 L120 19 Q150 17 150 0 Z"
+          fill="#ffffff" stroke="#1d3557" stroke-width="7" stroke-linejoin="round"/>
+    <ellipse cx="104" cy="0" rx="18" ry="9" fill="#ffd23f"/>
+  </g>
+</svg>

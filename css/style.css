@@ -83,6 +83,16 @@ html, body {
   padding: 6px 10px; border-radius: 999px; transform: rotate(-6deg);
 }
 
+/* -------------------------------------------------------------- 짧은 알림 */
+#toast {
+  position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px);
+  max-width: min(520px, 90vw); padding: 12px 18px; z-index: 45;
+  background: rgba(18, 24, 32, .94); border: 1px solid #4ade80; border-radius: 14px;
+  font-size: 14px; font-weight: 700; line-height: 1.45; text-align: center;
+  opacity: 0; pointer-events: none; transition: opacity .35s, transform .35s;
+}
+#toast.show { opacity: 1; transform: translate(-50%, 0); }
+
 /* ------------------------------------------------------- 화면 조종 버튼 */
 #touch {
   position: fixed; left: 0; right: 0; bottom: 0;
